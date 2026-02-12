@@ -73,6 +73,11 @@ app.post("/scrape/shein", async (req, res) => {
   try {
     browser = await chromium.launch({
       headless: true,
+      proxy: {
+        server: "http://v2.proxyempire.io:5000",
+        username: "r_6c91ffefda-sid-g018fag0-country-cl",
+        password: "e32819270d"
+      },
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -83,8 +88,9 @@ app.post("/scrape/shein", async (req, res) => {
 
     const context = await browser.newContext({
       userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36",
-      locale: "es-ES",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile Safari/604.1",
+      locale: "es-CL",
+      timezoneId: "America/Santiago",
     });
 
     await context.addInitScript(() => {
@@ -94,6 +100,25 @@ app.post("/scrape/shein", async (req, res) => {
     });
 
     const page = await context.newPage();
+
+    // 🔥 BLOQUEAR RECURSOS PESADOS (ahorra MB)
+    await page.route("**/*", (route) => {
+      const url = route.request().url();
+
+      if (
+        url.includes("googletag") ||
+        url.includes("criteo") ||
+        url.includes("pinterest") ||
+        url.includes("analytics") ||
+        url.endsWith(".jpg") ||
+        url.endsWith(".png") ||
+        url.endsWith(".webp")
+      ) {
+        return route.abort();
+      }
+
+      route.continue();
+    });
 
     page.on("response", (response) => {
       if (response.request().resourceType() === "document") {
