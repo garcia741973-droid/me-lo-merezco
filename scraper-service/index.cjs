@@ -1,124 +1,122 @@
-const express = require('express');
-const { chromium } = require('playwright');
+const express = require("express");
+const { chromium } = require("playwright");
 
 const app = express();
 app.use(express.json());
 
-app.post('/scrape/shein', async (req, res) => {
+const PORT = process.env.PORT || 3000;
+
+/* =========================
+   HEALTH CHECK
+========================= */
+app.get("/", (req, res) => {
+  res.json({ status: "Scraper activo 🚀" });
+});
+
+/* =========================
+   SHEIN SCRAPER
+========================= */
+app.post("/scrape/shein", async (req, res) => {
+  const { url } = req.body;
+
+  if (!url) {
+    return res.status(400).json({ error: "URL requerida" });
+  }
+
   let browser;
 
   try {
-    const { url } = req.body;
-
-    if (!url || !url.includes('shein.com')) {
-      return res.status(400).json({ error: 'URL inválida' });
-    }
-
-    // Lanzar Chromium en modo ultra liviano para Railway
     browser = await chromium.launch({
       headless: true,
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--single-process',
-        '--no-zygote',
-        '--no-first-run',
-        '--no-default-browser-check'
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-blink-features=AutomationControlled"
       ]
     });
 
-  const context = await browser.newContext({
-  userAgent:
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-});
+    const context = await browser.newContext({
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile Safari/604.1",
+      viewport: { width: 390, height: 844 },
+      locale: "es-CL"
+    });
+
+    // Evitar detección básica
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, "webdriver", {
+        get: () => false
+      });
+    });
+
     const page = await context.newPage();
 
-    // Bloquear recursos pesados
-    await page.route('**/*', route => {
-      const resourceType = route.request().resourceType();
-      if (
-        resourceType === 'image' ||
-        resourceType === 'media' ||
-        resourceType === 'font'
-      ) {
-        route.abort();
-      } else {
-        route.continue();
-      }
-    });
-
     await page.goto(url, {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000
+      waitUntil: "domcontentloaded",
+      timeout: 45000
     });
 
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(5000);
+    // Esperar a que el título exista
+    await page.waitForSelector("h1", { timeout: 20000 });
 
+    const data = await page.evaluate(() => {
+      const clean = (text) =>
+        text ? text.replace(/\s+/g, " ").trim() : null;
 
-const data = await page.evaluate(() => {
-  const result = {
-    name: null,
-    price: null,
-    currency: null,
-    image: null
-  };
+      const nameEl =
+        document.querySelector("h1") ||
+        document.querySelector('[data-testid="product-title"]');
 
-  // Intentar encontrar JSON interno
-  const scripts = Array.from(document.querySelectorAll('script'));
+      const priceEl =
+        document.querySelector('[data-testid="price"]') ||
+        document.querySelector(".from") ||
+        document.querySelector(".product-price") ||
+        document.querySelector('[class*="price"]');
 
-  for (const script of scripts) {
-    if (script.innerText.includes('window.gbCommonInfo')) {
-      try {
-        const match = script.innerText.match(/window\.gbCommonInfo\s*=\s*(\{.*?\});/s);
+      const imageEl =
+        document.querySelector('img[src*="shein"]');
+
+      let priceText = priceEl ? clean(priceEl.innerText) : null;
+
+      let currency = null;
+      let price = null;
+
+      if (priceText) {
+        const match = priceText.match(/([\$\€\£]?)([\d\.,]+)/);
         if (match) {
-          const json = JSON.parse(match[1]);
-
-          result.currency = json?.currency?.currencyCode || null;
+          currency = match[1] || "CLP";
+          price = match[2];
         }
-      } catch (e) {}
-    }
-
-    if (script.innerText.includes('__INITIAL_STATE__')) {
-      try {
-        const match = script.innerText.match(/__INITIAL_STATE__\s*=\s*(\{.*?\});/s);
-        if (match) {
-          const json = JSON.parse(match[1]);
-
-          const product = json?.goodsDetail?.goodsInfo;
-
-          result.name = product?.goodsName || null;
-          result.price = product?.retailPrice?.amount || null;
-          result.image = product?.goodsImage || null;
-        }
-      } catch (e) {}
-    }
-  }
-
-  return result;
-});
-
-
-    res.json(data);
-
-  } catch (err) {
-    console.error('SCRAPER ERROR:', err);
-    res.status(500).json({ error: 'Scraper failed' });
-
-  } finally {
-    if (browser) {
-      try {
-        await browser.close();
-      } catch (e) {
-        console.error('Error closing browser:', e);
       }
+
+      return {
+        name: nameEl ? clean(nameEl.innerText) : null,
+        price,
+        currency,
+        image: imageEl ? imageEl.src : null
+      };
+    });
+
+    await browser.close();
+
+    return res.json(data);
+
+  } catch (error) {
+    console.error("ERROR SHEIN:", error);
+
+    if (browser) {
+      await browser.close();
     }
+
+    return res.status(500).json({
+      error: "Error procesando Shein"
+    });
   }
 });
 
-const PORT = process.env.PORT || 3000;
+/* ========================= */
+
 app.listen(PORT, () => {
-  console.log('Scraper running on port', PORT);
+  console.log(`Servidor corriendo en puerto ${PORT}`);
 });
