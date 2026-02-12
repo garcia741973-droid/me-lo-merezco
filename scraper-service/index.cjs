@@ -29,7 +29,10 @@ app.post('/scrape/shein', async (req, res) => {
       ]
     });
 
-    const context = await browser.newContext();
+  const context = await browser.newContext({
+  userAgent:
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+});
     const page = await context.newPage();
 
     // Bloquear recursos pesados
@@ -51,7 +54,9 @@ app.post('/scrape/shein', async (req, res) => {
       timeout: 30000
     });
 
-    await page.waitForSelector('h1', { timeout: 15000 });
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(5000);
+
 
     const data = await page.evaluate(() => {
       const clean = (t) =>
