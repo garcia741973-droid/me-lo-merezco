@@ -58,23 +58,48 @@ app.post('/scrape/shein', async (req, res) => {
     await page.waitForTimeout(5000);
 
 
-    const data = await page.evaluate(() => {
-      const clean = (t) =>
-        parseFloat(t?.replace(/[^0-9.]/g, ''));
+const data = await page.evaluate(() => {
+  const result = {
+    name: null,
+    price: null,
+    currency: null,
+    image: null
+  };
 
-      const name =
-        document.querySelector('h1')?.innerText || '';
+  // Intentar encontrar JSON interno
+  const scripts = Array.from(document.querySelectorAll('script'));
 
-      const priceEl =
-        document.querySelector('[class*="price"]');
+  for (const script of scripts) {
+    if (script.innerText.includes('window.gbCommonInfo')) {
+      try {
+        const match = script.innerText.match(/window\.gbCommonInfo\s*=\s*(\{.*?\});/s);
+        if (match) {
+          const json = JSON.parse(match[1]);
 
-      const price = clean(priceEl?.innerText);
+          result.currency = json?.currency?.currencyCode || null;
+        }
+      } catch (e) {}
+    }
 
-      const image =
-        document.querySelector('img')?.src || '';
+    if (script.innerText.includes('__INITIAL_STATE__')) {
+      try {
+        const match = script.innerText.match(/__INITIAL_STATE__\s*=\s*(\{.*?\});/s);
+        if (match) {
+          const json = JSON.parse(match[1]);
 
-      return { name, price, image };
-    });
+          const product = json?.goodsDetail?.goodsInfo;
+
+          result.name = product?.goodsName || null;
+          result.price = product?.retailPrice?.amount || null;
+          result.image = product?.goodsImage || null;
+        }
+      } catch (e) {}
+    }
+  }
+
+  return result;
+});
+
 
     res.json(data);
 
