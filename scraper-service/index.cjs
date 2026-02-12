@@ -60,43 +60,62 @@ app.post("/scrape/shein", async (req, res) => {
     // Esperar a que el título exista
     await page.waitForSelector("h1", { timeout: 20000 });
 
-    const data = await page.evaluate(() => {
-      const clean = (text) =>
-        text ? text.replace(/\s+/g, " ").trim() : null;
+const data = await page.evaluate(() => {
+  const clean = (text) =>
+    text ? text.replace(/\s+/g, " ").trim() : null;
 
-      const nameEl =
-        document.querySelector("h1") ||
-        document.querySelector('[data-testid="product-title"]');
+  let name = null;
+  let price = null;
+  let currency = null;
+  let image = null;
 
-      const priceEl =
-        document.querySelector('[data-testid="price"]') ||
-        document.querySelector(".from") ||
-        document.querySelector(".product-price") ||
-        document.querySelector('[class*="price"]');
+  // Intentar leer estado global de Shein
+  if (window.__INITIAL_STATE__) {
+    try {
+      const state = window.__INITIAL_STATE__;
 
-      const imageEl =
-        document.querySelector('img[src*="shein"]');
+      const product =
+        state?.goodsDetail?.detail ||
+        state?.product ||
+        state?.goodsDetail;
 
-      let priceText = priceEl ? clean(priceEl.innerText) : null;
+      if (product) {
+        name = product.goods_name || product.name || null;
 
-      let currency = null;
-      let price = null;
+        if (product.salePrice?.amount) {
+          price = product.salePrice.amount;
+          currency = product.salePrice.currency || "CLP";
+        }
 
-      if (priceText) {
-        const match = priceText.match(/([\$\€\£]?)([\d\.,]+)/);
-        if (match) {
-          currency = match[1] || "CLP";
-          price = match[2];
+        if (product.goods_img) {
+          image = product.goods_img;
         }
       }
+    } catch (e) {}
+  }
 
-      return {
-        name: nameEl ? clean(nameEl.innerText) : null,
-        price,
-        currency,
-        image: imageEl ? imageEl.src : null
-      };
-    });
+  // Fallback DOM
+  if (!name) {
+    const h1 = document.querySelector("h1");
+    if (h1) name = clean(h1.innerText);
+  }
+
+  if (!price) {
+    const priceEl =
+      document.querySelector('[data-testid="price"]') ||
+      document.querySelector('[class*="price"]');
+    if (priceEl) price = clean(priceEl.innerText);
+  }
+
+  if (!image) {
+    const imgEl =
+      document.querySelector('img[src*="shein"]');
+    if (imgEl) image = imgEl.src;
+  }
+
+  return { name, price, currency, image };
+});
+
 
     await browser.close();
 
