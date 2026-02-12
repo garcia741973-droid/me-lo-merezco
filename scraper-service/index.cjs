@@ -72,7 +72,7 @@ app.post("/scrape/shein", async (req, res) => {
 
   try {
     browser = await chromium.launch({
-      headless: true,
+      headless: false,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
