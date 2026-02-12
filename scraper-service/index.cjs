@@ -182,18 +182,3 @@ async function scrape(url) {
 module.exports = { scrape };
 
 
-// ===============================
-// EJECUCION DIRECTA (test manual)
-// ===============================
-if (require.main === module) {
-  const testUrl = process.argv[2];
-
-  if (!testUrl) {
-    console.log('Uso: node index.cjs <URL>');
-    process.exit(1);
-  }
-
-  scrape(testUrl).then((res) => {
-    console.log('RESULTADO FINAL:', res);
-  });
-}
