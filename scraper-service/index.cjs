@@ -14,12 +14,19 @@ app.post('/scrape/shein', async (req, res) => {
 
     const browser = await chromium.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage'
+      ]
     });
 
     const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(3000);
+
+    await page.goto(url, {
+      waitUntil: 'networkidle',
+      timeout: 60000
+    });
 
     const data = await page.evaluate(() => {
       const clean = (t) =>
@@ -44,7 +51,7 @@ app.post('/scrape/shein', async (req, res) => {
     res.json(data);
 
   } catch (err) {
-    console.error(err);
+    console.error('SCRAPER ERROR:', err);
     res.status(500).json({ error: 'Scraper failed' });
   }
 });
