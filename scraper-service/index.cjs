@@ -71,28 +71,8 @@ app.post("/scrape/shein", async (req, res) => {
   let browser;
 
   try {
-browser = await chromium.launch({
-  headless: true,
-  args: [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-dev-shm-usage",
-    "--disable-blink-features=AutomationControlled",
-  ],
-});
-
-const context = await browser.newContext({
-  proxy: {
-    server: "http://v2.proxyempire.io:5000",
-    username: "r_6c91ffefda-country-cl",
-    password: "e32819270d"
-  },
-  userAgent:
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile Safari/604.1",
-  locale: "es-CL",
-  timezoneId: "America/Santiago",
-});
-
+    browser = await chromium.launch({
+      headless: true,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -102,6 +82,11 @@ const context = await browser.newContext({
     });
 
     const context = await browser.newContext({
+      proxy: {
+        server: "http://v2.proxyempire.io:5000",
+        username: "r_6c91ffefda-country-cl",
+        password: "e32819270d",
+      },
       userAgent:
         "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile Safari/604.1",
       locale: "es-CL",
@@ -116,10 +101,9 @@ const context = await browser.newContext({
 
     const page = await context.newPage();
 
-    // 🔥 BLOQUEAR RECURSOS PESADOS (ahorra MB)
+    // Bloqueo de recursos pesados
     await page.route("**/*", (route) => {
       const url = route.request().url();
-
       if (
         url.includes("googletag") ||
         url.includes("criteo") ||
@@ -131,7 +115,6 @@ const context = await browser.newContext({
       ) {
         return route.abort();
       }
-
       route.continue();
     });
 
@@ -178,32 +161,6 @@ const context = await browser.newContext({
       } catch (err) {
         console.error("ERROR SHEIN:", err.message);
 
-        const now = Date.now();
-
-        try {
-          const screenshotPath = path.join(
-            DEBUG_DIR,
-            `shein_error_${now}.png`
-          );
-          const htmlPath = path.join(
-            DEBUG_DIR,
-            `shein_error_${now}.html`
-          );
-
-          await page.screenshot({
-            path: screenshotPath,
-            fullPage: true,
-          });
-
-          const html = await page.content();
-          fs.writeFileSync(htmlPath, html);
-
-          console.log("Debug guardado en:", screenshotPath);
-          console.log("HTML guardado en:", htmlPath);
-        } catch (debugErr) {
-          console.error("Error guardando debug:", debugErr.message);
-        }
-
         if (attempt < MAX_RETRIES) {
           attempt++;
           await new Promise((r) => setTimeout(r, 3000));
@@ -211,6 +168,7 @@ const context = await browser.newContext({
         }
 
         await browser.close();
+
         return res.status(500).json({
           success: false,
           error: err.message,
