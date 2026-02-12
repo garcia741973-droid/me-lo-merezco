@@ -1,138 +1,199 @@
-const express = require("express");
-const { chromium } = require("playwright");
+const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
 
-const app = express();
-app.use(express.json());
+const DEBUG_DIR = '/tmp';
 
-const PORT = process.env.PORT || 3000;
+// ===============================
+// CONFIG
+// ===============================
+const MAX_RETRIES = 2;
+const TIMEOUT = 20000;
 
-/* =========================
-   HEALTH CHECK
-========================= */
-app.get("/", (req, res) => {
-  res.json({ status: "Scraper activo 🚀" });
-});
+async function delay(ms) {
+  return new Promise(res => setTimeout(res, ms));
+}
 
-/* =========================
-   SHEIN SCRAPER
-========================= */
-app.post("/scrape/shein", async (req, res) => {
-  const { url } = req.body;
+// ===============================
+// FUNCION ROBUSTA PARA OBTENER TITULO
+// ===============================
+async function robustExtractTitle(page) {
 
-  if (!url) {
-    return res.status(400).json({ error: "URL requerida" });
-  }
+  const selectors = [
+    'h1',
+    'header h1',
+    '.product-intro__head-name',
+    '.product-title',
+    'meta[property="og:title"]',
+    'title'
+  ];
 
-  let browser;
+  for (const sel of selectors) {
+    try {
 
-  try {
-    browser = await chromium.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-blink-features=AutomationControlled"
-      ]
-    });
-
-    const context = await browser.newContext({
-      userAgent:
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile Safari/604.1",
-      viewport: { width: 390, height: 844 },
-      locale: "es-CL"
-    });
-
-    // Evitar detección básica
-    await context.addInitScript(() => {
-      Object.defineProperty(navigator, "webdriver", {
-        get: () => false
-      });
-    });
-
-    const page = await context.newPage();
-
-    await page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: 45000
-    });
-
-    // Esperar a que el título exista
-    await page.waitForSelector("h1", { timeout: 20000 });
-
-const data = await page.evaluate(() => {
-  const clean = (text) =>
-    text ? text.replace(/\s+/g, " ").trim() : null;
-
-  let name = null;
-  let price = null;
-  let currency = null;
-  let image = null;
-
-  try {
-    if (typeof window !== "undefined" && window.__INITIAL_STATE__) {
-      const state = window.__INITIAL_STATE__;
-
-      if (state && state.goodsDetail && state.goodsDetail.detail) {
-        const product = state.goodsDetail.detail;
-
-        name = product.goods_name || null;
-
-        if (product.salePrice && product.salePrice.amount) {
-          price = product.salePrice.amount;
-          currency = product.salePrice.currency || "CLP";
-        }
-
-        image = product.goods_img || null;
+      if (sel === 'title') {
+        const title = await page.title();
+        if (title) return { selector: 'title', text: title };
       }
+
+      if (sel.startsWith('meta')) {
+        const meta = await page.$(sel);
+        if (meta) {
+          const content = await meta.getAttribute('content');
+          if (content) return { selector: sel, text: content };
+        }
+      }
+
+      const el = await page.$(sel);
+      if (el) {
+        await page.waitForSelector(sel, { visible: true, timeout: 2000 });
+        const text = await el.innerText();
+        if (text && text.trim().length > 3) {
+          return { selector: sel, text: text.trim() };
+        }
+      }
+
+    } catch (err) {
+      // seguimos probando otros selectores
     }
-  } catch (e) {
-    console.log("STATE ERROR", e);
   }
 
-  // Fallback DOM
-  if (!name) {
-    const h1 = document.querySelector("h1");
-    if (h1) name = clean(h1.innerText);
-  }
+  return null;
+}
 
-  if (!price) {
-    const priceEl =
-      document.querySelector('[data-testid="price"]') ||
-      document.querySelector('[class*="price"]');
-    if (priceEl) price = clean(priceEl.innerText);
-  }
+// ===============================
+// SCRAPER PRINCIPAL
+// ===============================
+async function scrape(url) {
 
-  if (!image) {
-    const imgEl =
-      document.querySelector('img[src*="shein"]');
-    if (imgEl) image = imgEl.src;
-  }
+  console.log('====================================');
+  console.log('SCRAPER START:', new Date().toISOString());
+  console.log('URL:', url);
 
-  return { name, price, currency, image };
-});
+  const browser = await chromium.launch({
+    headless: true, // cambiar a false para debug visual
+  });
 
+  const context = await browser.newContext({
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36',
+    locale: 'es-ES',
+  });
 
+  const page = await context.newPage();
 
-    await browser.close();
-
-    return res.json(data);
-
-  } catch (error) {
-    console.error("ERROR SHEIN:", error);
-
-    if (browser) {
-      await browser.close();
-    }
-
-    return res.status(500).json({
-      error: "Error procesando Shein"
+  // Mitigación básica headless detection
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', {
+      get: () => false,
     });
+  });
+
+  // Log de responses importantes
+  page.on('response', (response) => {
+    if (response.request().resourceType() === 'document') {
+      console.log('NAV RESPONSE:', response.status(), response.url());
+    }
+  });
+
+  let attempt = 0;
+
+  while (attempt <= MAX_RETRIES) {
+    try {
+
+      console.log(`Intento ${attempt + 1}`);
+
+      const response = await page.goto(url, {
+        waitUntil: 'domcontentloaded',
+        timeout: 30000,
+      });
+
+      if (!response) {
+        throw new Error('No response received');
+      }
+
+      console.log('Goto status:', response.status());
+
+      // Esperamos red ociosa
+      try {
+        await page.waitForLoadState('networkidle', { timeout: 10000 });
+      } catch (err) {
+        console.log('networkidle no alcanzado, continuando...');
+      }
+
+      // Intentar extraer título
+      const result = await robustExtractTitle(page);
+
+      if (!result) {
+        throw new Error('No se encontró ningún selector válido para título');
+      }
+
+      console.log('Selector usado:', result.selector);
+      console.log('Texto:', result.text);
+
+      await browser.close();
+
+      return {
+        success: true,
+        title: result.text,
+      };
+
+    } catch (err) {
+
+      console.error('ERROR SHEIN:', err.message);
+
+      const now = Date.now();
+
+      try {
+        const screenshotPath = path.join(DEBUG_DIR, `scraper_error_${now}.png`);
+        const htmlPath = path.join(DEBUG_DIR, `scraper_error_${now}.html`);
+
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+        const html = await page.content();
+        fs.writeFileSync(htmlPath, html);
+
+        console.log('Debug guardado en:', screenshotPath);
+        console.log('HTML guardado en:', htmlPath);
+
+      } catch (debugErr) {
+        console.error('Error guardando debug:', debugErr.message);
+      }
+
+      if (attempt < MAX_RETRIES) {
+        attempt++;
+        console.log('Reintentando en 3 segundos...');
+        await delay(3000);
+        continue;
+      }
+
+      await browser.close();
+
+      return {
+        success: false,
+        error: err.message,
+      };
+    }
   }
-});
+}
 
-/* ========================= */
+// ===============================
+// EXPORT PARA USO EN EXPRESS
+// ===============================
+module.exports = { scrape };
 
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
-});
+
+// ===============================
+// EJECUCION DIRECTA (test manual)
+// ===============================
+if (require.main === module) {
+  const testUrl = process.argv[2];
+
+  if (!testUrl) {
+    console.log('Uso: node index.cjs <URL>');
+    process.exit(1);
+  }
+
+  scrape(testUrl).then((res) => {
+    console.log('RESULTADO FINAL:', res);
+  });
+}
