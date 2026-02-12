@@ -24,9 +24,12 @@ app.post('/scrape/shein', async (req, res) => {
     const page = await browser.newPage();
 
     await page.goto(url, {
-      waitUntil: 'networkidle',
-      timeout: 60000
+      waitUntil: 'domcontentloaded',
+        timeout: 30000
     });
+
+    // Esperar solo algo básico del DOM
+    await page.waitForSelector('h1', { timeout: 15000 });
 
     const data = await page.evaluate(() => {
       const clean = (t) =>
