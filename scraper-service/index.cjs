@@ -69,29 +69,25 @@ const data = await page.evaluate(() => {
   let currency = null;
   let image = null;
 
-  // Intentar leer estado global de Shein
-  if (window.__INITIAL_STATE__) {
-    try {
+  try {
+    if (typeof window !== "undefined" && window.__INITIAL_STATE__) {
       const state = window.__INITIAL_STATE__;
 
-      const product =
-        state?.goodsDetail?.detail ||
-        state?.product ||
-        state?.goodsDetail;
+      if (state && state.goodsDetail && state.goodsDetail.detail) {
+        const product = state.goodsDetail.detail;
 
-      if (product) {
-        name = product.goods_name || product.name || null;
+        name = product.goods_name || null;
 
-        if (product.salePrice?.amount) {
+        if (product.salePrice && product.salePrice.amount) {
           price = product.salePrice.amount;
           currency = product.salePrice.currency || "CLP";
         }
 
-        if (product.goods_img) {
-          image = product.goods_img;
-        }
+        image = product.goods_img || null;
       }
-    } catch (e) {}
+    }
+  } catch (e) {
+    console.log("STATE ERROR", e);
   }
 
   // Fallback DOM
@@ -115,6 +111,7 @@ const data = await page.evaluate(() => {
 
   return { name, price, currency, image };
 });
+
 
 
     await browser.close();
