@@ -75,7 +75,7 @@ app.post("/scrape/shein", async (req, res) => {
       headless: true,
       proxy: {
         server: "http://v2.proxyempire.io:5000",
-        username: "username: "r_6c91ffefda-country-cl",
+        username: "r_6c91ffefda-country-cl",
         password: "e32819270d"
       },
       args: [
