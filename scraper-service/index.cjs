@@ -45,6 +45,15 @@ app.post("/scrape/shein", async (req, res) => {
       timeout: 60000,
     });
 
+const currentHtml = await page.content();
+console.log("PAGE URL:", page.url());
+console.log("PAGE LENGTH:", currentHtml.length);
+
+if (currentHtml.includes("captcha") || currentHtml.includes("verify")) {
+  console.log("⚠️ POSIBLE BLOQUEO DETECTADO");
+}
+
+
     await page.waitForSelector("h1", { timeout: 20000 });
 
     const titleLocator = page.locator("h1").first();
