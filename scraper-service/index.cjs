@@ -49,6 +49,19 @@ app.post("/scrape/shein", async (req, res) => {
 
     const finalUrl = page.url();
 
+    // 🔎 Verificar país y moneda desde DOM
+const htmlLang = await page.getAttribute("html", "lang").catch(() => null);
+
+const currencyCheck = await page.evaluate(() => {
+  const text = document.body.innerText;
+  if (text.includes("CLP")) return "CLP detectado en texto";
+  if (text.includes("USD")) return "USD detectado en texto";
+  return "Moneda no detectada en texto";
+});
+
+console.log("LANG HTML:", htmlLang);
+console.log("MONEDA TEXTO:", currencyCheck);
+    
     if (finalUrl.includes("risk")) {
       throw new Error("Shein redirigió a página de riesgo");
     }
