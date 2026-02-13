@@ -18,19 +18,32 @@ app.post("/scrape/shein", async (req, res) => {
 
   try {
     browser = await chromium.launch({
-      headless: false,
-      proxy: {
-        server: "geo.iproyal.com:12321",
-        username: "SA1UeEU0zGMrR7G9",
-        password: "ZtkXm31fMmWVnBlM_country-cl",
-      },
-    });
+  headless: true,
+  args: [
+    "--disable-blink-features=AutomationControlled",
+    "--no-sandbox",
+    "--disable-dev-shm-usage"
+  ],
+  proxy: {
+    server: "geo.iproyal.com:12321",
+    username: "SA1UeEU0zGMrR7G9",
+    password: "ZtkXm31fMmWVnBlM_country-cl",
+  },
+});
+
 
     const context = await browser.newContext({
       userAgent:
         "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
       locale: "es-CL",
     });
+
+ await context.addInitScript(() => {
+  Object.defineProperty(navigator, 'webdriver', {
+    get: () => undefined,
+  });
+});
+   
 
     const page = await context.newPage();
 
