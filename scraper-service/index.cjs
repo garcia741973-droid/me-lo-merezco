@@ -71,9 +71,9 @@ app.post("/scrape/shein", async (req, res) => {
 browser = await chromium.launch({
   headless: true,
   proxy: {
-    server: "http://HOST:PORT",
-    username: "TU_USUARIO_PROXYEMPIRE",
-    password: "TU_PASSWORD_PROXYEMPIRE",
+    server: "http://proxy.proxyempire.io:9000",
+    username: "TU_USUARIO",
+    password: "TU_PASSWORD"
   },
   args: [
     "--no-sandbox",
@@ -82,6 +82,7 @@ browser = await chromium.launch({
     "--disable-blink-features=AutomationControlled",
   ],
 });
+
 
 
     const context = await browser.newContext({
