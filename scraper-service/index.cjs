@@ -1,13 +1,10 @@
 const express = require("express");
 const { chromium } = require("playwright");
-const fs = require("fs");
-const path = require("path");
 
 const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-const DEBUG_DIR = "/tmp";
 const MAX_RETRIES = 2;
 
 // ===============================
@@ -72,7 +69,7 @@ app.post("/scrape/shein", async (req, res) => {
 
   try {
     browser = await chromium.launch({
-      headless: false,
+      headless: true,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -82,15 +79,10 @@ app.post("/scrape/shein", async (req, res) => {
     });
 
     const context = await browser.newContext({
-      proxy: {
-        server: "http://v2.proxyempire.io:5000",
-        username: "r_6c91ffefda-country-cl",
-        password: "e32819270d",
-      },
-      userAgent:
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile Safari/604.1",
       locale: "es-CL",
       timezoneId: "America/Santiago",
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     });
 
     await context.addInitScript(() => {
@@ -100,23 +92,6 @@ app.post("/scrape/shein", async (req, res) => {
     });
 
     const page = await context.newPage();
-
-    // Bloqueo de recursos pesados
-    await page.route("**/*", (route) => {
-      const url = route.request().url();
-      if (
-        url.includes("googletag") ||
-        url.includes("criteo") ||
-        url.includes("pinterest") ||
-        url.includes("analytics") ||
-        url.endsWith(".jpg") ||
-        url.endsWith(".png") ||
-        url.endsWith(".webp")
-      ) {
-        return route.abort();
-      }
-      route.continue();
-    });
 
     page.on("response", (response) => {
       if (response.request().resourceType() === "document") {
@@ -141,9 +116,11 @@ app.post("/scrape/shein", async (req, res) => {
 
         console.log("HTTP Status:", response.status());
 
-        try {
-          await page.waitForLoadState("networkidle", { timeout: 10000 });
-        } catch {}
+        // ⬇️ Espera simple para SPA (reemplaza networkidle)
+        await page.waitForTimeout(6000);
+        const html = await page.content();
+        console.log("HTML LENGTH:", html.length);
+        console.log("URL FINAL:", page.url());
 
         const title = await robustExtractTitle(page);
 
@@ -175,6 +152,7 @@ app.post("/scrape/shein", async (req, res) => {
         });
       }
     }
+
   } catch (error) {
     console.error("FATAL ERROR:", error.message);
 
