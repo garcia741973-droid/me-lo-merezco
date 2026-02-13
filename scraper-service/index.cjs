@@ -18,37 +18,69 @@ app.post("/scrape/shein", async (req, res) => {
 
   try {
     browser = await chromium.launch({
-      headless: true,
+      headless: false, // 🔥 IMPORTANTE: NO headless
       proxy: {
         server: "http://geo.iproyal.com:12321",
         username: "SA1UeEU0zGMrR7G9",
         password: "ZtkXm31fMmWVnBlM",
       },
+      args: [
+        "--disable-blink-features=AutomationControlled",
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+      ],
+    });
+///
+    const context = await browser.newContext({
+      viewport: { width: 1366, height: 768 },
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+      locale: "es-CL",
     });
 
-    const page = await browser.newPage();
+    const page = await context.newPage();
+
+    // 🔥 Ocultar webdriver
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "webdriver", {
+        get: () => undefined,
+      });
+    });
 
     await page.goto(url, {
-      waitUntil: "domcontentloaded",
+      waitUntil: "networkidle",
       timeout: 60000,
     });
 
-    await page.waitForTimeout(5000);
+    // Simular comportamiento humano
+    await page.waitForTimeout(4000);
+    await page.mouse.move(200, 200);
+    await page.waitForTimeout(2000);
 
     const finalUrl = page.url();
 
+    console.log("FINAL URL:", finalUrl);
+
     if (finalUrl.includes("risk")) {
-      throw new Error("Shein redirigió a página de riesgo");
+      throw new Error("Shein activó sistema anti-bot");
     }
 
-    // EXTRAER DATOS
-    const title = await page.title();
+    // 🔎 Extraer datos más específicos
+    const title = await page
+      .locator("h1")
+      .first()
+      .innerText()
+      .catch(() => null);
 
-    const price = await page.locator("[class*='price']").first().innerText().catch(() => null);
+    const price = await page
+      .locator("[class*='price']")
+      .first()
+      .innerText()
+      .catch(() => null);
 
     const image = await page
       .locator("img")
-      .first()
+      .nth(1)
       .getAttribute("src")
       .catch(() => null);
 
@@ -61,17 +93,17 @@ app.post("/scrape/shein", async (req, res) => {
       image,
       finalUrl,
     });
-
   } catch (err) {
+    console.log("ERROR:", err.message);
+
     if (browser) await browser.close();
+
     return res.status(500).json({
       success: false,
       error: err.message,
     });
   }
 });
-
-
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
