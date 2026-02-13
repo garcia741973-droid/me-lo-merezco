@@ -12,10 +12,7 @@ app.get("/", (req, res) => {
 
 app.post("/scrape/shein", async (req, res) => {
   const { url } = req.body;
-
-  if (!url) {
-    return res.status(400).json({ error: "URL requerida" });
-  }
+  if (!url) return res.status(400).json({ error: "URL requerida" });
 
   let browser;
 
@@ -23,48 +20,57 @@ app.post("/scrape/shein", async (req, res) => {
     browser = await chromium.launch({
       headless: true,
       proxy: {
-        server: "http://v2.proxyempire.io:5000",
-        username: "r_6c91ffefda-country-cl-sid-k6ba3b6j",
-        password: "e32819270d"
-      }
+        server: "http://geo.iproyal.com:12321",
+        username: "SA1UeEU0zGMrR7G9",
+        password: "ZtkXm31fMmWVnBlM",
+      },
     });
 
-    const context = await browser.newContext({
-      locale: "es-CL",
-      timezoneId: "America/Santiago",
-      userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    });
+    const page = await browser.newPage();
 
-    const page = await context.newPage();
-
-    const response = await page.goto(url, {
+    await page.goto(url, {
       waitUntil: "domcontentloaded",
-      timeout: 30000
+      timeout: 60000,
     });
 
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(5000);
 
-    const html = await page.content();
-    console.log("HTML LENGTH:", html.length);
-    console.log("FINAL URL:", page.url());
+    const finalUrl = page.url();
 
+    if (finalUrl.includes("risk")) {
+      throw new Error("Shein redirigió a página de riesgo");
+    }
+
+    // EXTRAER DATOS
     const title = await page.title();
+
+    const price = await page.locator("[class*='price']").first().innerText().catch(() => null);
+
+    const image = await page
+      .locator("img")
+      .first()
+      .getAttribute("src")
+      .catch(() => null);
 
     await browser.close();
 
     return res.json({
       success: true,
       title,
-      finalUrl: page.url()
+      price,
+      image,
+      finalUrl,
     });
 
-  } catch (error) {
-    console.error("ERROR:", error.message);
+  } catch (err) {
     if (browser) await browser.close();
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+    });
   }
 });
+
 
 
 app.listen(PORT, "0.0.0.0", () => {
