@@ -18,19 +18,17 @@ app.post("/scrape/shein", async (req, res) => {
 
   try {
     browser = await chromium.launch({
-  headless: true,
-  args: [
-    "--disable-blink-features=AutomationControlled",
-    "--no-sandbox",
-    "--disable-dev-shm-usage"
-  ],
-  proxy: {
-    server: "geo.iproyal.com:12321",
-    username: "SA1UeEU0zGMrR7G9",
-    password: "ZtkXm31fMmWVnBlM_country-cl",
-  },
-});
-
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-dev-shm-usage"
+      ],
+      proxy: {
+        server: "geo.iproyal.com:12321",
+        username: "SA1UeEU0zGMrR7G9", // PROXY RANDOM
+        password: "ZtkXm31fMmWVnBlM", // SIN country targeting
+      },
+    });
 
     const context = await browser.newContext({
       userAgent:
@@ -38,16 +36,9 @@ app.post("/scrape/shein", async (req, res) => {
       locale: "es-CL",
     });
 
- await context.addInitScript(() => {
-  Object.defineProperty(navigator, 'webdriver', {
-    get: () => undefined,
-  });
-});
-   
-
     const page = await context.newPage();
 
-    // 🔎 Ver IP real desde navegador
+    // 🔎 Ver IP real
     await page.goto("https://api.myip.com", { waitUntil: "domcontentloaded" });
     const ipCheck = await page.textContent("body");
     console.log("IP ACTUAL VIA BROWSER:", ipCheck);
@@ -58,35 +49,65 @@ app.post("/scrape/shein", async (req, res) => {
       timeout: 60000,
     });
 
-const currentHtml = await page.content();
-console.log("PAGE URL:", page.url());
-console.log("PAGE LENGTH:", currentHtml.length);
+    const finalUrl = page.url();
+    console.log("FINAL URL:", finalUrl);
 
-if (currentHtml.includes("captcha") || currentHtml.includes("verify")) {
-  console.log("⚠️ POSIBLE BLOQUEO DETECTADO");
-}
-
-
-    await page.waitForSelector("h1", { timeout: 20000 });
-
-    const titleLocator = page.locator("h1").first();
-    const title = (await titleLocator.count()) > 0
-      ? await titleLocator.innerText()
-      : null;
-
-    // Precio seguro
-    let price = null;
-    const priceLocator = page.locator("[class*='price'], [class*='Price']").first();
-
-    if (await priceLocator.count() > 0) {
-      price = await priceLocator.innerText();
+    if (finalUrl.includes("risk")) {
+      throw new Error("Shein redirigió a página de riesgo");
     }
 
-    console.log("PRECIO RAW:", price);
+    // Esperar título visible
+    await page.waitForSelector("h1", { timeout: 20000 });
 
-    // Imagen segura
+    // ======================
+    // EXTRAER DATOS
+    // ======================
+
+    // Título
+    let title = null;
+    const titleLocator = page.locator("h1").first();
+
+    if (await titleLocator.count() > 0) {
+      title = await titleLocator.innerText();
+    }
+
+    // Precio estructurado
+    let priceRaw = null;
+    let priceValue = null;
+    let currency = null;
+
+    const priceLocator = page
+      .locator("[class*='price'], [class*='Price']")
+      .first();
+
+    if (await priceLocator.count() > 0) {
+      priceRaw = await priceLocator.innerText();
+
+      const numeric = priceRaw.replace(/[^\d]/g, "");
+      priceValue = numeric ? parseInt(numeric, 10) : null;
+    }
+
+    // Detectar moneda por región URL
+    if (url.includes("/cl/")) {
+      currency = "CLP";
+    } else if (url.includes("/mx/")) {
+      currency = "MXN";
+    } else if (url.includes("/es/")) {
+      currency = "EUR";
+    } else {
+      currency = "USD";
+    }
+
+    console.log("TITLE:", title);
+    console.log("PRICE RAW:", priceRaw);
+    console.log("PRICE VALUE:", priceValue);
+    console.log("CURRENCY:", currency);
+
+    // Imagen
     let image = null;
-    const imageLocator = page.locator("img[src*='img.ltwebstatic']").first();
+    const imageLocator = page
+      .locator("img[src*='img.ltwebstatic']")
+      .first();
 
     if (await imageLocator.count() > 0) {
       image = await imageLocator.getAttribute("src");
@@ -97,7 +118,9 @@ if (currentHtml.includes("captcha") || currentHtml.includes("verify")) {
     return res.json({
       success: true,
       title,
-      price,
+      priceRaw,
+      priceValue,
+      currency,
       image,
       finalUrl,
     });
