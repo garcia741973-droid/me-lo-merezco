@@ -34,11 +34,10 @@ app.post("/scrape/shein", async (req, res) => {
 
     const page = await context.newPage();
 
-    // 🔎 Ver IP actual
-await page.goto("https://api.myip.com", { waitUntil: "domcontentloaded" });
-const ipCheck = await page.textContent("body");
-console.log("IP ACTUAL VIA BROWSER:", ipCheck);
-
+    // 🔎 Ver IP real desde navegador
+    await page.goto("https://api.myip.com", { waitUntil: "domcontentloaded" });
+    const ipCheck = await page.textContent("body");
+    console.log("IP ACTUAL VIA BROWSER:", ipCheck);
 
     // Ir al producto
     await page.goto(url, {
@@ -46,46 +45,48 @@ console.log("IP ACTUAL VIA BROWSER:", ipCheck);
       timeout: 60000,
     });
 
-    await page.waitForTimeout(6000);
+    // Esperar que cargue contenido real
+    await page.waitForLoadState("networkidle");
 
     const finalUrl = page.url();
 
-    // 🔎 Verificar país y moneda desde DOM
-const htmlLang = await page.getAttribute("html", "lang").catch(() => null);
-
-const currencyCheck = await page.evaluate(() => {
-  const text = document.body.innerText;
-  if (text.includes("CLP")) return "CLP detectado en texto";
-  if (text.includes("USD")) return "USD detectado en texto";
-  return "Moneda no detectada en texto";
-});
-
-console.log("LANG HTML:", htmlLang);
-console.log("MONEDA TEXTO:", currencyCheck);
-    
     if (finalUrl.includes("risk")) {
       throw new Error("Shein redirigió a página de riesgo");
     }
+
+    // 🔎 Verificar región
+    const htmlLang = await page.getAttribute("html", "lang").catch(() => null);
+    console.log("LANG HTML:", htmlLang);
 
     // ======================
     // EXTRAER DATOS VISIBLES
     // ======================
 
-    await page.waitForSelector("h1", { timeout: 15000 });
+    // Esperar título
+    await page.waitForSelector("h1", { timeout: 20000 });
 
-    const title = await page.locator("h1").first().innerText();
+    const titleLocator = page.locator("h1").first();
+    const title = (await titleLocator.count()) > 0
+      ? await titleLocator.innerText()
+      : null;
 
-    const price = await page
-      .locator("[class*='price'], [class*='Price']")
-      .first()
-      .innerText()
-      .catch(() => null);
+    // Precio seguro
+    let price = null;
+    const priceLocator = page.locator("[class*='price'], [class*='Price']").first();
 
-    const image = await page
-      .locator("img[src*='img.ltwebstatic']")
-      .first()
-      .getAttribute("src")
-      .catch(() => null);
+    if (await priceLocator.count() > 0) {
+      price = await priceLocator.innerText();
+    }
+
+    console.log("PRECIO RAW:", price);
+
+    // Imagen segura
+    let image = null;
+    const imageLocator = page.locator("img[src*='img.ltwebstatic']").first();
+
+    if (await imageLocator.count() > 0) {
+      image = await imageLocator.getAttribute("src");
+    }
 
     await browser.close();
 
@@ -99,6 +100,8 @@ console.log("MONEDA TEXTO:", currencyCheck);
 
   } catch (err) {
     if (browser) await browser.close();
+
+    console.error("ERROR:", err.message);
 
     return res.status(500).json({
       success: false,
