@@ -71,18 +71,28 @@ app.post("/scrape/shein", async (req, res) => {
 browser = await chromium.launch({
   headless: true,
   proxy: {
-    server: "http://proxy.proxyempire.io:5000",
+    server: ""http://v2.proxyempire.io:5000"",
     username: "r_6c91ffefda-country-cl-sid-k6ba3b6j",
     password: "e32819270d"
   },
-  args: [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-dev-shm-usage",
-  ],
+ // args: [
+ //   "--no-sandbox",
+ //   "--disable-setuid-sandbox",
+ //   "--disable-dev-shm-usage",
+ // ],
 });
 
+const page = await browser.newPage();
 
+await page.goto("https://ipinfo.io/json");
+await page.waitForTimeout(3000);
+
+const content = await page.content();
+console.log(content);
+
+await browser.close();
+
+return res.json({ ok: true });
 
     const context = await browser.newContext({
       locale: "es-CL",
