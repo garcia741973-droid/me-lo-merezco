@@ -6,16 +6,10 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// ===============================
-// HEALTH CHECK
-// ===============================
 app.get("/", (req, res) => {
   res.json({ status: "Scraper activo 🚀" });
 });
 
-// ===============================
-// ENDPOINT PROXY TEST
-// ===============================
 app.post("/scrape/shein", async (req, res) => {
   let browser;
 
@@ -39,7 +33,6 @@ app.post("/scrape/shein", async (req, res) => {
     await page.waitForTimeout(3000);
 
     const content = await page.content();
-
     console.log("IP TEST RESULT:");
     console.log(content);
 
@@ -59,9 +52,6 @@ app.post("/scrape/shein", async (req, res) => {
   }
 });
 
-// ===============================
-// START SERVER
-// ===============================
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
 });
