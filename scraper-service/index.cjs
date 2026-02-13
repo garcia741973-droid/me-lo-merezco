@@ -35,9 +35,10 @@ app.post("/scrape/shein", async (req, res) => {
     const page = await context.newPage();
 
     // 🔎 Ver IP actual
-    await page.goto("https://ipinfo.io/json");
-    const ipCheck = await page.textContent("body");
-    console.log("IP ACTUAL:", ipCheck);
+const response = await page.request.get("https://ipinfo.io/json");
+const ipCheck = await response.text();
+console.log("IP ACTUAL (via request):", ipCheck);
+
 
     // Ir al producto
     await page.goto(url, {
