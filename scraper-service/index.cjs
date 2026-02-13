@@ -18,7 +18,7 @@ app.post("/scrape/shein", async (req, res) => {
 
   try {
     browser = await chromium.launch({
-      headless: true,
+      headless: false,
       proxy: {
         server: "geo.iproyal.com:12321",
         username: "SA1UeEU0zGMrR7G9",
