@@ -72,8 +72,8 @@ browser = await chromium.launch({
   headless: true,
   proxy: {
     server: "http://proxy.proxyempire.io:9000",
-    username: "TU_USUARIO",
-    password: "TU_PASSWORD"
+    username: "r_6c91ffefda-country-cl-sid-k6ba3b6j",
+    password: "e32819270d"
   },
   args: [
     "--no-sandbox",
