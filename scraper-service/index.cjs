@@ -71,7 +71,7 @@ app.post("/scrape/shein", async (req, res) => {
 browser = await chromium.launch({
   headless: true,
   proxy: {
-    server: ""http://v2.proxyempire.io:5000"",
+    server: ""http://v2.proxyempire.io:5000",
     username: "r_6c91ffefda-country-cl-sid-k6ba3b6j",
     password: "e32819270d"
   },
