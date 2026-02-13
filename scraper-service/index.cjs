@@ -68,15 +68,21 @@ app.post("/scrape/shein", async (req, res) => {
   let browser;
 
   try {
-    browser = await chromium.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-blink-features=AutomationControlled",
-      ],
-    });
+browser = await chromium.launch({
+  headless: true,
+  proxy: {
+    server: "http://HOST:PORT",
+    username: "TU_USUARIO_PROXYEMPIRE",
+    password: "TU_PASSWORD_PROXYEMPIRE",
+  },
+  args: [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-blink-features=AutomationControlled",
+  ],
+});
+
 
     const context = await browser.newContext({
       locale: "es-CL",
