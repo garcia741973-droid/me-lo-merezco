@@ -34,12 +34,18 @@ app.post("/scrape/shein", async (req, res) => {
 
     const page = await context.newPage();
 
+    // 🔎 Ver IP actual
+    await page.goto("https://ipinfo.io/json");
+    const ipCheck = await page.textContent("body");
+    console.log("IP ACTUAL:", ipCheck);
+
+    // Ir al producto
     await page.goto(url, {
       waitUntil: "domcontentloaded",
       timeout: 60000,
     });
 
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(6000);
 
     const finalUrl = page.url();
 
@@ -47,45 +53,25 @@ app.post("/scrape/shein", async (req, res) => {
       throw new Error("Shein redirigió a página de riesgo");
     }
 
-// Extraer JSON interno
-const data = await page.evaluate(() => {
-  return window.__INITIAL_STATE__ || window.gbCommonInfo || null;
-});
+    // ======================
+    // EXTRAER DATOS VISIBLES
+    // ======================
 
-let title = null;
-let price = null;
-let currency = null;
-let image = null;
+    await page.waitForSelector("h1", { timeout: 15000 });
 
-if (data) {
-  try {
-    const product =
-      data?.productDetail ||
-      data?.goodsDetail ||
-      data?.productInfo ||
-      null;
+    const title = await page.locator("h1").first().innerText();
 
-    if (product) {
-      title = product.goods_name || product.title || null;
+    const price = await page
+      .locator("[class*='price'], [class*='Price']")
+      .first()
+      .innerText()
+      .catch(() => null);
 
-      price =
-        product.retailPrice?.amount ||
-        product.salePrice?.amount ||
-        product.price?.amount ||
-        null;
-
-      currency =
-        product.retailPrice?.currency ||
-        product.salePrice?.currency ||
-        null;
-
-      image =
-        product.goods_img ||
-        product.main_image ||
-        null;
-    }
-  } catch (e) {}
-}
+    const image = await page
+      .locator("img[src*='img.ltwebstatic']")
+      .first()
+      .getAttribute("src")
+      .catch(() => null);
 
     await browser.close();
 
@@ -99,15 +85,11 @@ if (data) {
 
   } catch (err) {
     if (browser) await browser.close();
-return res.json({
-  success: true,
-  title,
-  price,
-  currency,
-  image,
-  finalUrl,
-});
 
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+    });
   }
 });
 
