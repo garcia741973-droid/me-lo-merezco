@@ -112,10 +112,22 @@ browser = await chromium.launch({
       try {
         console.log("Intento:", attempt + 1);
 
-        const response = await page.goto(url, {
-          waitUntil: "domcontentloaded",
-          timeout: 30000,
-        });
+const response = await page.goto("https://ipinfo.io/json", {
+  waitUntil: "domcontentloaded",
+  timeout: 30000,
+});
+
+await page.waitForTimeout(3000);
+
+const ipData = await page.content();
+console.log("IP TEST RESPONSE:");
+console.log(ipData);
+
+return res.json({
+  success: true,
+  ipData
+});
+
 
         if (!response) {
           throw new Error("No response");
