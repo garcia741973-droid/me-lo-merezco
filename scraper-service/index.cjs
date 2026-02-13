@@ -47,19 +47,45 @@ app.post("/scrape/shein", async (req, res) => {
       throw new Error("Shein redirigió a página de riesgo");
     }
 
-    const title = await page.title();
+// Extraer JSON interno
+const data = await page.evaluate(() => {
+  return window.__INITIAL_STATE__ || window.gbCommonInfo || null;
+});
 
-    const price = await page
-      .locator("[class*='price']")
-      .first()
-      .innerText()
-      .catch(() => null);
+let title = null;
+let price = null;
+let currency = null;
+let image = null;
 
-    const image = await page
-      .locator("img")
-      .first()
-      .getAttribute("src")
-      .catch(() => null);
+if (data) {
+  try {
+    const product =
+      data?.productDetail ||
+      data?.goodsDetail ||
+      data?.productInfo ||
+      null;
+
+    if (product) {
+      title = product.goods_name || product.title || null;
+
+      price =
+        product.retailPrice?.amount ||
+        product.salePrice?.amount ||
+        product.price?.amount ||
+        null;
+
+      currency =
+        product.retailPrice?.currency ||
+        product.salePrice?.currency ||
+        null;
+
+      image =
+        product.goods_img ||
+        product.main_image ||
+        null;
+    }
+  } catch (e) {}
+}
 
     await browser.close();
 
@@ -73,10 +99,15 @@ app.post("/scrape/shein", async (req, res) => {
 
   } catch (err) {
     if (browser) await browser.close();
-    return res.status(500).json({
-      success: false,
-      error: err.message,
-    });
+return res.json({
+  success: true,
+  title,
+  price,
+  currency,
+  image,
+  finalUrl,
+});
+
   }
 });
 
