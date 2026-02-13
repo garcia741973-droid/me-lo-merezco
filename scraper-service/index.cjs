@@ -45,24 +45,6 @@ app.post("/scrape/shein", async (req, res) => {
       timeout: 60000,
     });
 
-    // Esperar que cargue contenido real
-    await page.waitForLoadState("networkidle");
-
-    const finalUrl = page.url();
-
-    if (finalUrl.includes("risk")) {
-      throw new Error("Shein redirigió a página de riesgo");
-    }
-
-    // 🔎 Verificar región
-    const htmlLang = await page.getAttribute("html", "lang").catch(() => null);
-    console.log("LANG HTML:", htmlLang);
-
-    // ======================
-    // EXTRAER DATOS VISIBLES
-    // ======================
-
-    // Esperar título
     await page.waitForSelector("h1", { timeout: 20000 });
 
     const titleLocator = page.locator("h1").first();
