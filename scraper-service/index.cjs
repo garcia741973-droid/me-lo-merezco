@@ -22,7 +22,7 @@ app.post("/scrape/shein", async (req, res) => {
       proxy: {
         server: "http://geo.iproyal.com:12321",
         username: "SA1UeEU0zGMrR7G9",
-        password: "ZtkXm31fMmWVnBlM",
+        password: "ZtkXm31fMmWVnBlM_country-cl",
       },
     });
 
