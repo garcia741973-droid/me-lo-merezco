@@ -18,8 +18,7 @@ class ClientOrderDetailScreen extends StatefulWidget {
       _ClientOrderDetailScreenState();
 }
 
-class _ClientOrderDetailScreenState
-    extends State<ClientOrderDetailScreen> {
+class _ClientOrderDetailScreenState extends State<ClientOrderDetailScreen> {
   Order? _order;
   List<dynamic> _items = [];
   bool _loading = true;
@@ -32,10 +31,8 @@ class _ClientOrderDetailScreenState
 
   Future<void> _loadData() async {
     try {
-      final order =
-          await OrderService.fetchOrder(widget.orderId);
-      final items =
-          await OrderService.fetchOrderItems(widget.orderId);
+      final order = await OrderService.fetchOrder(widget.orderId);
+      final items = await OrderService.fetchOrderItems(widget.orderId);
 
       setState(() {
         _order = order;
@@ -80,19 +77,15 @@ class _ClientOrderDetailScreenState
           children: [
             _row('Pedido ID', _order!.id.toString()),
             const Divider(),
-
             _row(
               'Costo de importación',
               '\$${_order!.total.toStringAsFixed(2)}',
             ),
-
             _row(
               'Estado',
               _formatStatus(_order!.status),
             ),
-
             const SizedBox(height: 24),
-
             const Text(
               'Ítems del pedido',
               style: TextStyle(
@@ -100,9 +93,7 @@ class _ClientOrderDetailScreenState
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 12),
-
             Expanded(
               child: _items.isEmpty
                   ? const Center(
@@ -114,15 +105,13 @@ class _ClientOrderDetailScreenState
                         final item = _items[index];
 
                         return Card(
-                          margin:
-                              const EdgeInsets.only(bottom: 8),
+                          margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
-                            title: Text(item['product_name']),
+                            title: Text(item['product_name'] ?? ''),
                             subtitle: Text(
                               'Precio: \$${item['price']}',
                             ),
-                            trailing: item['status'] == 'pending' &&
-                                    isAdmin
+                            trailing: item['status'] == 'pending' && isAdmin
                                 ? Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -133,8 +122,8 @@ class _ClientOrderDetailScreenState
                                         ),
                                         tooltip: 'Aprobar',
                                         onPressed: () async {
-                                          await OrderService
-                                              .approveItem(item['id']);
+                                          await OrderService.approveItem(
+                                              item['id']);
                                           await _loadData();
                                         },
                                       ),
@@ -145,8 +134,8 @@ class _ClientOrderDetailScreenState
                                         ),
                                         tooltip: 'Rechazar',
                                         onPressed: () async {
-                                          await OrderService
-                                              .rejectItem(item['id']);
+                                          await OrderService.rejectItem(
+                                              item['id']);
                                           await _loadData();
                                         },
                                       ),
@@ -166,13 +155,9 @@ class _ClientOrderDetailScreenState
                       },
                     ),
             ),
-
             const SizedBox(height: 16),
-
             _statusMessage(_order!.status),
-
             const SizedBox(height: 16),
-
             if (isClient)
               SizedBox(
                 width: double.infinity,
@@ -208,70 +193,69 @@ class _ClientOrderDetailScreenState
   }
 
   Widget _statusMessage(OrderStatus status) {
-  switch (status) {
-    case OrderStatus.pending:
-      return const Text(
-        'Este pedido está en el carrito',
-        style: TextStyle(color: Colors.grey),
-      );
+    switch (status) {
+      case OrderStatus.pending:
+        return const Text(
+          'Este pedido está en el carrito',
+          style: TextStyle(color: Colors.grey),
+        );
 
-    case OrderStatus.requested:
-      return const Text(
-        'Tu solicitud está siendo validada.',
-        style: TextStyle(color: Colors.orange),
-      );
+      case OrderStatus.requested:
+        return const Text(
+          'Tu solicitud está siendo validada.',
+          style: TextStyle(color: Colors.orange),
+        );
 
-    case OrderStatus.approved:
-      return const Text(
-        'Pedido aprobado.',
-        style: TextStyle(color: Colors.green),
-      );
+      case OrderStatus.approvedForPayment:
+        return const Text(
+          'Pedido aprobado, listo para pagar.',
+          style: TextStyle(color: Colors.green),
+        );
 
-    case OrderStatus.approvedForPayment:
-      return const Text(
-        'Pedido aprobado, listo para pagar.',
-        style: TextStyle(color: Colors.green),
-      );
+      case OrderStatus.paymentSent:
+        return const Text(
+          'Pago enviado, esperando confirmación.',
+          style: TextStyle(color: Colors.blue),
+        );
 
-    case OrderStatus.paymentSent:
-      return const Text(
-        'Pago enviado, esperando confirmación.',
-        style: TextStyle(color: Colors.blue),
-      );
+      case OrderStatus.paid:
+        return const Text(
+          'Pago confirmado, preparando entrega.',
+          style: TextStyle(color: Colors.teal),
+        );
 
-    case OrderStatus.paid:
-      return const Text(
-        'Pago confirmado, preparando entrega.',
-        style: TextStyle(color: Colors.teal),
-      );
+      case OrderStatus.delivered:
+        return const Text(
+          'Pedido entregado.',
+          style: TextStyle(color: Colors.purple),
+        );
 
-    case OrderStatus.delivered:
-      return const Text(
-        'Pedido entregado.',
-        style: TextStyle(color: Colors.purple),
-      );
+      case OrderStatus.rejected:
+        return const Text(
+          'Todos los productos fueron rechazados.',
+          style: TextStyle(color: Colors.red),
+        );
+    }
   }
-}
 
   String _formatStatus(OrderStatus status) {
-  switch (status) {
-    case OrderStatus.pending:
-      return 'En carrito';
-    case OrderStatus.requested:
-      return 'Solicitud enviada';
-    case OrderStatus.approved:
-      return 'Aprobado';
-    case OrderStatus.approvedForPayment:
-      return 'Aprobado para pago';
-    case OrderStatus.paymentSent:
-      return 'Pago enviado';
-    case OrderStatus.paid:
-      return 'Pagado';
-    case OrderStatus.delivered:
-      return 'Entregado';
+    switch (status) {
+      case OrderStatus.pending:
+        return 'En carrito';
+      case OrderStatus.requested:
+        return 'Solicitud enviada';
+      case OrderStatus.approvedForPayment:
+        return 'Aprobado para pago';
+      case OrderStatus.paymentSent:
+        return 'Pago enviado';
+      case OrderStatus.paid:
+        return 'Pagado';
+      case OrderStatus.delivered:
+        return 'Entregado';
+      case OrderStatus.rejected:
+        return 'Rechazado';
+    }
   }
-}
-
 
   String _formatItemStatus(String status) {
     switch (status) {
@@ -300,21 +284,21 @@ class _ClientOrderDetailScreenState
   }
 
   Color _statusColor(OrderStatus status) {
-  switch (status) {
-    case OrderStatus.pending:
-      return Colors.grey;
-    case OrderStatus.requested:
-      return Colors.grey;
-    case OrderStatus.approved:
-      return Colors.green;
-    case OrderStatus.approvedForPayment:
-      return Colors.blue;
-    case OrderStatus.paymentSent:
-      return Colors.orange;
-    case OrderStatus.paid:
-      return Colors.green;
-    case OrderStatus.delivered:
-      return Colors.teal;
+    switch (status) {
+      case OrderStatus.pending:
+        return Colors.grey;
+      case OrderStatus.requested:
+        return Colors.grey;
+      case OrderStatus.approvedForPayment:
+        return Colors.blue;
+      case OrderStatus.paymentSent:
+        return Colors.orange;
+      case OrderStatus.paid:
+        return Colors.green;
+      case OrderStatus.delivered:
+        return Colors.teal;
+      case OrderStatus.rejected:
+        return Colors.red;
+    }
   }
-}
 }

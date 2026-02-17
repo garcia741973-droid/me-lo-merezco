@@ -1,11 +1,11 @@
 enum OrderStatus {
-  pending,            // carrito
-  requested,          // enviado a validación
-  approved,           // admin aprobó cotización
-  approvedForPayment, // listo para pagar
+  pending,
+  requested,
+  approvedForPayment,
   paymentSent,
   paid,
   delivered,
+  rejected,
 }
 
 
