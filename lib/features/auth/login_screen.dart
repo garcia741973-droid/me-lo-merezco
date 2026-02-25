@@ -45,7 +45,6 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // 🔑 Usuario ya autenticado: redirigir según rol (manteniendo tokens/roles)
       final user = AuthService().currentUser;
       if (user == null) {
         _showMessage('Error al obtener usuario');
@@ -65,13 +64,12 @@ class _LoginScreenState extends State<LoginScreen> {
           destination = const ClientHomeScreen();
       }
 
-      // Reemplaza todo el stack (evita volver al login con back)
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => destination),
         (route) => false,
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       _showMessage('Error al iniciar sesión. Intenta nuevamente.');
     } finally {
@@ -97,53 +95,121 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Iniciar sesión'),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            TextField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-              ),
+      extendBodyBehindAppBar: true,
+      body: Stack(
+        children: [
+
+          // 🌿 Fondo real visible
+          Positioned.fill(
+            child: Image.asset(
+              'assets/logos/fondoGeneral.png',
+              fit: BoxFit.cover,
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              obscureText: _obscurePassword,
-              decoration: InputDecoration(
-                labelText: 'Contraseña',
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility
-                        : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            isLoading
-                ? const CircularProgressIndicator()
-                : SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _login,
-                      child: const Text('Entrar'),
+          ),
+
+          // Contenido
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                children: [
+
+                  const SizedBox(height: 60),
+
+                  const Text(
+                    "Iniciar sesión",
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                   ),
-          ],
-        ),
+
+                  const SizedBox(height: 40),
+
+                  // EMAIL
+                  TextField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      labelText: 'Email',
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.9),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // PASSWORD
+                  TextField(
+                    controller: passwordController,
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: 'Contraseña',
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.9),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  isLoading
+                      ? const CircularProgressIndicator()
+                      : SizedBox(
+                          width: double.infinity,
+                          height: 54,
+                          child: ElevatedButton(
+                            onPressed: _login,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFAEDFC8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              elevation: 3,
+                            ),
+                            child: const Text(
+                              "Entrar",
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.black87,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                  const SizedBox(height: 60),
+
+                  // 🔱 Logo minimalista abajo
+                  Image.asset(
+                    "assets/logos/logo_minimalista.png",
+                    width: MediaQuery.of(context).size.width * 0.50,
+                  ),
+
+                  const SizedBox(height: 30),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

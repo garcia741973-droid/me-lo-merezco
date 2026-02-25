@@ -9,14 +9,22 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/cloudinary_service.dart';
 
 class AdminCreateOfferScreen extends StatefulWidget {
-  const AdminCreateOfferScreen({super.key});
+  final Map<String, dynamic>? offer;
+
+  const AdminCreateOfferScreen({
+    super.key,
+    this.offer,
+  });
 
   @override
   State<AdminCreateOfferScreen> createState() =>
       _AdminCreateOfferScreenState();
 }
 
-class _AdminCreateOfferScreenState extends State<AdminCreateOfferScreen> {
+class _AdminCreateOfferScreenState
+    extends State<AdminCreateOfferScreen> {
+
+
   // ---------------- CONTROLLERS ----------------
   final titleCtrl = TextEditingController();
   final descCtrl = TextEditingController();
@@ -32,6 +40,46 @@ class _AdminCreateOfferScreenState extends State<AdminCreateOfferScreen> {
   bool _uploadingImage = false;
 
   bool isLoading = false;
+
+  // ---------------- CATEGORÍAS ----------------
+  int? selectedCategoryId;
+  List<dynamic> categories = [];
+  bool loadingCategories = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+
+if (widget.offer != null) {
+  titleCtrl.text = widget.offer!['title'] ?? '';
+  descCtrl.text = widget.offer!['description'] ?? '';
+  priceCtrl.text =
+      widget.offer!['price']?.toString() ?? '';
+  selectedCategoryId = widget.offer!['category_id'];
+}
+
+
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final res = await http.get(
+        Uri.parse(
+          'https://me-lo-merezco-backend.onrender.com/categories',
+        ),
+      );
+
+      if (res.statusCode == 200) {
+        setState(() {
+          categories = jsonDecode(res.body);
+          loadingCategories = false;
+        });
+      }
+    } catch (_) {
+      setState(() => loadingCategories = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -106,7 +154,12 @@ class _AdminCreateOfferScreenState extends State<AdminCreateOfferScreen> {
       return;
     }
 
-    final price = double.tryParse(priceText);
+final normalizedPriceText =
+    priceText.replaceAll(',', '.');
+
+final price =
+    double.tryParse(normalizedPriceText);
+
     if (price == null) {
       _showMessage('Precio inválido');
       return;
@@ -117,35 +170,61 @@ class _AdminCreateOfferScreenState extends State<AdminCreateOfferScreen> {
       return;
     }
 
+    if (selectedCategoryId == null) {
+      _showMessage('Debes seleccionar una categoría');
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
       final token = await AuthService().getToken();
 
-      final res = await http.post(
-        Uri.parse(
-          'https://me-lo-merezco-backend.onrender.com/admin/offers',
-        ),
+ final uri = widget.offer == null
+    ? Uri.parse(
+        'https://me-lo-merezco-backend.onrender.com/admin/offers')
+    : Uri.parse(
+        'https://me-lo-merezco-backend.onrender.com/admin/offers/${widget.offer!['id']}');
+
+final body = jsonEncode({
+  'title': title,
+  'description': description.isEmpty ? null : description,
+  'price': price,
+  'image_url': _imageUrl,
+  'starts_at': startsAt?.toIso8601String(),
+  'ends_at': endsAt?.toIso8601String(),
+  'category_id': selectedCategoryId,
+});
+
+final res = widget.offer == null
+    ? await http.post(
+        uri,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({
-          'title': title,
-          'description': description.isEmpty ? null : description,
-          'price': price,
-          'image_url': _imageUrl,
-          'starts_at': startsAt?.toIso8601String(),
-          'ends_at': endsAt?.toIso8601String(),
-        }),
+        body: body,
+      )
+    : await http.patch(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: body,
       );
 
-      if (res.statusCode == 201) {
-        _showMessage('Oferta creada correctamente');
-        Navigator.pop(context, true);
-      } else {
-        _showMessage('Error al crear la oferta');
-      }
+
+      if (res.statusCode == 201 || res.statusCode == 200) {
+  _showMessage(
+      widget.offer == null
+          ? 'Oferta creada correctamente'
+          : 'Oferta actualizada correctamente');
+  Navigator.pop(context, true);
+} else {
+  _showMessage('Error al guardar la oferta');
+}
+
     } catch (_) {
       _showMessage('Error de conexión');
     } finally {
@@ -217,6 +296,29 @@ class _AdminCreateOfferScreenState extends State<AdminCreateOfferScreen> {
                   hintText: 'Ej: 199.99',
                 ),
               ),
+              const SizedBox(height: 20),
+
+              // ---------- CATEGORÍA ----------
+              loadingCategories
+                  ? const Center(child: CircularProgressIndicator())
+                  : DropdownButtonFormField<int>(
+                      value: selectedCategoryId,
+                      decoration: const InputDecoration(
+                        labelText: 'Categoría *',
+                      ),
+                      items: categories.map((c) {
+                        return DropdownMenuItem<int>(
+                          value: c['id'],
+                          child: Text(c['name']),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedCategoryId = value;
+                        });
+                      },
+                    ),
+
               const SizedBox(height: 20),
 
               // ---------- FECHAS ----------
@@ -297,7 +399,6 @@ class _AdminCreateOfferScreenState extends State<AdminCreateOfferScreen> {
 
               const SizedBox(height: 30),
 
-              // ---------- CREATE ----------
               isLoading
                   ? const Center(
                       child: CircularProgressIndicator(),

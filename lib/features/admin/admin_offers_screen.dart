@@ -65,6 +65,46 @@ class _AdminOffersScreenState extends State<AdminOffersScreen> {
     _loadOffers();
   }
 
+  Future<void> _deleteOffer(int id) async {
+  final token = await AuthService().getToken();
+
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Eliminar oferta'),
+      content: const Text(
+          '¿Seguro que deseas eliminar esta oferta?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text(
+            'Eliminar',
+            style: TextStyle(color: Colors.red),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  if (confirm != true) return;
+
+  await http.delete(
+    Uri.parse(
+      'https://me-lo-merezco-backend.onrender.com/admin/offers/$id',
+    ),
+    headers: {
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  _loadOffers();
+}
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,11 +130,38 @@ class _AdminOffersScreenState extends State<AdminOffersScreen> {
                     return ListTile(
                       title: Text(o['title']),
                       subtitle: Text(o['description'] ?? ''),
-                      trailing: Switch(
-                        value: o['active'] == true,
-                        onChanged: (v) =>
-                            _toggleOffer(o['id'], v),
-                      ),
+                      trailing: Row(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    IconButton(
+      icon: const Icon(Icons.edit, color: Colors.blue),
+      onPressed: () async {
+        final updated = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AdminCreateOfferScreen(
+              offer: o,
+            ),
+          ),
+        );
+
+        if (updated == true) {
+          _loadOffers();
+        }
+      },
+    ),
+    IconButton(
+      icon: const Icon(Icons.delete, color: Colors.red),
+      onPressed: () => _deleteOffer(o['id']),
+    ),
+    Switch(
+      value: o['active'] == true,
+      onChanged: (v) =>
+          _toggleOffer(o['id'], v),
+    ),
+  ],
+),
+
                     );
                   },
                 ),
@@ -104,7 +171,7 @@ floatingActionButton: FloatingActionButton(
     final created = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const AdminCreateOfferScreen(),
+        builder: (_) => AdminCreateOfferScreen(),
       ),
     );
 

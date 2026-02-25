@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../../shared/models/user.dart';
 
@@ -31,12 +32,10 @@ class AuthService {
       }),
     );
 
-    // ❌ Credenciales incorrectas
     if (res.statusCode == 401 || res.statusCode == 403) {
       return false;
     }
 
-    // ❌ Error real
     if (res.statusCode != 200) {
       throw Exception('Error del servidor (${res.statusCode})');
     }
@@ -45,8 +44,10 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
 
     await prefs.setString(_tokenKey, data['token']);
-
     _currentUser = _userFromJson(data['user']);
+
+    // 🔔 Registrar FCM token automáticamente
+    await _registerDeviceToken(data['token']);
 
     return true;
   }
@@ -58,7 +59,7 @@ class AuthService {
     required String name,
     required String email,
     required String password,
-    int? sellerId, // 👈 NUEVO (opcional)
+    int? sellerId,
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/auth/register'),
@@ -67,20 +68,14 @@ class AuthService {
         'name': name,
         'email': email,
         'password': password,
-        if (sellerId != null) 'seller_id': sellerId, // 👈 NUEVO
+        if (sellerId != null) 'seller_id': sellerId,
       }),
     );
 
-    // ❌ Email ya existe
     if (res.statusCode == 409) {
       return false;
     }
-// 👇 LOGS DE DEBUG (CORRECTAMENTE DENTRO DEL MÉTODO)
-  print('REGISTER STATUS: ${res.statusCode}');
-  print('REGISTER BODY: ${res.body}');
 
-
-    // ❌ Error real
     if (res.statusCode != 200 && res.statusCode != 201) {
       throw Exception('Error del servidor (${res.statusCode})');
     }
@@ -89,8 +84,10 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
 
     await prefs.setString(_tokenKey, data['token']);
-
     _currentUser = _userFromJson(data['user']);
+
+    // 🔔 Registrar FCM token automáticamente
+    await _registerDeviceToken(data['token']);
 
     return true;
   }
@@ -116,7 +113,6 @@ class AuthService {
       return true;
     }
 
-    // Token inválido o expirado
     if (res.statusCode == 401 || res.statusCode == 403) {
       await logout();
       return false;
@@ -137,77 +133,106 @@ class AuthService {
   // LOGOUT
   // =========================
   Future<void> logout() async {
+    final token = await getToken();
+
+    if (token != null) {
+      await _removeDeviceToken(token);
+    }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     _currentUser = null;
   }
 
-// =========================
-// CHANGE PASSWORD (USUARIO LOGUEADO)
-// =========================
-Future<bool> changePassword({
-  required String currentPassword,
-  required String newPassword,
-}) async {
-  final token = await getToken();
-  if (token == null) {
-    throw Exception('Usuario no autenticado');
+  // =========================
+  // CHANGE PASSWORD
+  // =========================
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final token = await getToken();
+    if (token == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final res = await http.post(
+      Uri.parse('$_baseUrl/auth/change-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      }),
+    );
+
+    if (res.statusCode == 400) {
+      return false;
+    }
+
+    if (res.statusCode == 401 || res.statusCode == 403) {
+      await logout();
+      throw Exception('Sesión expirada');
+    }
+
+    if (res.statusCode != 200) {
+      throw Exception('Error del servidor (${res.statusCode})');
+    }
+
+    return true;
   }
-
-  final res = await http.post(
-    Uri.parse('$_baseUrl/auth/change-password'),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    },
-    body: jsonEncode({
-      'currentPassword': currentPassword,
-      'newPassword': newPassword,
-    }),
-  );
-
-  // ❌ Contraseña actual incorrecta
-  if (res.statusCode == 400) {
-    return false;
-  }
-
-  // ❌ Token inválido o expirado
-  if (res.statusCode == 401 || res.statusCode == 403) {
-    await logout();
-    throw Exception('Sesión expirada');
-  }
-
-  // ❌ Error real
-  if (res.statusCode != 200) {
-    throw Exception('Error del servidor (${res.statusCode})');
-  }
-
-  // ✅ OK
-  return true;
-}
-
 
   // =========================
-  // SELLER HELPERS (SE MANTIENEN)
+  // DEVICE TOKEN MANAGEMENT
   // =========================
-  int getAssociatedClientsCount() => 0;
 
-  String? getAssociatedSellerEmail() {
-    return _currentUser?.email;
+  Future<void> _registerDeviceToken(String jwt) async {
+    try {
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken == null) return;
+
+      await http.post(
+        Uri.parse('$_baseUrl/devices'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwt',
+        },
+        body: jsonEncode({
+          'fcm_token': fcmToken,
+          'platform': 'ios',
+        }),
+      );
+    } catch (e) {
+      print('Error registrando device token: $e');
+    }
   }
 
-  Map<String, dynamic>? getSellerByEmail(String? email) {
-    if (email == null) return null;
+  Future<void> _removeDeviceToken(String jwt) async {
+    try {
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken == null) return;
 
-    return {
-      'email': email,
-      'name': _currentUser?.name ?? '',
-    };
+      await http.delete(
+        Uri.parse('$_baseUrl/devices/current'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwt',
+        },
+        body: jsonEncode({
+          'fcm_token': fcmToken,
+        }),
+      );
+    } catch (e) {
+      print('Error eliminando device token: $e');
+    }
   }
 
   // =========================
   // PRIVATE HELPERS
   // =========================
+
   User _userFromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'],

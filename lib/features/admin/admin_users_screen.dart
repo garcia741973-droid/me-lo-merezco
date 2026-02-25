@@ -19,7 +19,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   String? _error;
   List<dynamic> _users = [];
 
-  int? _updatingUserId; // evita doble toggle
+  int? _updatingUserId;
 
   @override
   void initState() {
@@ -53,7 +53,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   Widget build(BuildContext context) {
     final user = AuthService().currentUser;
 
-    // 🔐 Protección: solo admin
     if (user == null || user.role != UserRole.admin) {
       return const LoginScreen();
     }
@@ -63,7 +62,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         title: const Text('Usuarios'),
         centerTitle: true,
         actions: [
-          // ➕ CREAR VENDEDOR
           IconButton(
             icon: const Icon(Icons.person_add),
             tooltip: 'Crear vendedor',
@@ -82,7 +80,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refrescar',
             onPressed: _loadUsers,
           ),
         ],
@@ -91,43 +88,17 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     );
   }
 
-  // ================= BODY =================
-
   Widget _buildBody() {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(_error!, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _loadUsers,
-              child: const Text('Reintentar'),
-            ),
-          ],
-        ),
-      );
+      return Center(child: Text(_error!));
     }
 
     if (_users.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.people_outline, size: 64, color: Colors.grey),
-            SizedBox(height: 12),
-            Text(
-              'No hay usuarios registrados',
-              style: TextStyle(fontSize: 16),
-            ),
-          ],
-        ),
-      );
+      return const Center(child: Text('No hay usuarios registrados'));
     }
 
     return RefreshIndicator(
@@ -153,83 +124,155 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             subtitle: Text(
               '${u['email']} · ${u['role'].toString().toUpperCase()}',
             ),
-            trailing: Switch(
-              value: isActive,
-              onChanged: updating
-                  ? null
-                  : (value) async {
-                      final action =
-                          value ? 'activar' : 'desactivar';
-
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (_) => AlertDialog(
-                          title: const Text('Confirmar acción'),
-                          content: Text(
-                            '¿Seguro que deseas $action este usuario?',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.pop(context, false),
-                              child: const Text('Cancelar'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  onPressed: () async {
+                    await _openEditDialog(u);
+                    _loadUsers();
+                  },
+                ),
+                Switch(
+                  value: isActive,
+                  onChanged: updating
+                      ? null
+                      : (value) async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              title: const Text('Confirmar acción'),
+                              content: Text(
+                                value
+                                    ? '¿Activar usuario?'
+                                    : '¿Desactivar usuario?',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
+                                  child: const Text('Cancelar'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, true),
+                                  child: const Text('Confirmar'),
+                                ),
+                              ],
                             ),
-                            ElevatedButton(
-                              onPressed: () =>
-                                  Navigator.pop(context, true),
-                              child: const Text('Confirmar'),
-                            ),
-                          ],
-                        ),
-                      );
+                          );
 
-                      if (confirm != true) return;
+                          if (confirm != true) return;
 
-                      setState(() =>
-                          _updatingUserId = u['id']);
+                          setState(() =>
+                              _updatingUserId = u['id']);
 
-                      try {
-                        await AdminUserService.setActive(
-                          userId: u['id'],
-                          isActive: value,
-                        );
+                          try {
+                            await AdminUserService.setActive(
+                              userId: u['id'],
+                              isActive: value,
+                            );
 
-                        if (!mounted) return;
-                        setState(() {
-                          u['is_active'] = value;
-                          _updatingUserId = null;
-                        });
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              value
-                                  ? 'Usuario activado'
-                                  : 'Usuario desactivado',
-                            ),
-                            backgroundColor: value
-                                ? Colors.green
-                                : Colors.orange,
-                          ),
-                        );
-                      } catch (_) {
-                        if (!mounted) return;
-                        setState(() =>
-                            _updatingUserId = null);
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Error al actualizar el usuario',
-                            ),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    },
+                            if (!mounted) return;
+                            setState(() {
+                              u['is_active'] = value;
+                              _updatingUserId = null;
+                            });
+                          } catch (_) {
+                            if (!mounted) return;
+                            setState(() =>
+                                _updatingUserId = null);
+                          }
+                        },
+                ),
+              ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Future<void> _openEditDialog(dynamic userData) async {
+    final role = userData['role'];
+
+    final TextEditingController commissionController =
+        TextEditingController(
+      text: userData['commission_rate']?.toString() ?? '',
+    );
+
+    int? selectedSellerId = userData['seller_id'];
+
+    final sellers =
+        _users.where((u) => u['role'] == 'seller').toList();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Editar usuario'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (role == 'client')
+              DropdownButtonFormField<int>(
+                value: selectedSellerId,
+                decoration: const InputDecoration(
+                  labelText: 'Asignar vendedor',
+                ),
+                items: sellers
+                    .map<DropdownMenuItem<int>>(
+                      (s) => DropdownMenuItem<int>(
+                        value: s['id'],
+                        child: Text(s['name']),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  selectedSellerId = value;
+                },
+              ),
+            if (role == 'seller')
+              TextField(
+                controller: commissionController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(
+                        decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Comisión (%)',
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                if (role == 'client') {
+                  await AdminUserService.updateUser(
+                    userId: userData['id'],
+                    sellerId: selectedSellerId,
+                  );
+                }
+
+                if (role == 'seller') {
+                  await AdminUserService.updateUser(
+                    userId: userData['id'],
+                    commissionRate: double.tryParse(
+                        commissionController.text),
+                  );
+                }
+
+                Navigator.pop(context);
+              } catch (_) {}
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
       ),
     );
   }

@@ -114,7 +114,7 @@ class _AdminOrderDetailScreenState
                           Text('Estado: ${item['status']}'),
                         ],
                       ),
-                      trailing: item['status'] == 'pending'
+                      trailing: item['status'] == 'requested'
                           ? Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [

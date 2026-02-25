@@ -22,7 +22,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool isLoading = false;
 
-  // 🔹 NUEVO: vendedores dinámicos
   List<Seller> sellers = [];
   bool loadingSellers = true;
   int? selectedSellerId;
@@ -48,9 +47,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // ===============================
-  // CARGAR VENDEDORES (OPCIÓN 2)
-  // ===============================
   Future<void> _loadSellers() async {
     try {
       final res = await http.get(
@@ -71,9 +67,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  // ===============================
-  // REGISTER
-  // ===============================
   Future<void> _register() async {
     final name = nameCtrl.text.trim();
     final email = emailCtrl.text.trim();
@@ -97,7 +90,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         name: name,
         email: email,
         password: pass,
-        sellerId: selectedSellerId, // 👈 opcional
+        sellerId: selectedSellerId,
       );
 
       if (!mounted) return;
@@ -107,7 +100,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      // Registro OK → ir al home del cliente
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const ClientHomeScreen()),
@@ -122,85 +114,139 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  // ===============================
-  // UI
-  // ===============================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Crear cuenta')),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Nombre'),
-              ),
-              const SizedBox(height: 12),
+      extendBodyBehindAppBar: true,
+      body: Stack(
+        children: [
 
-              TextField(
-                controller: emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'Email'),
-              ),
-              const SizedBox(height: 12),
-
-              // 🔽 DROPDOWN DINÁMICO DE VENDEDORES
-              loadingSellers
-                  ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: CircularProgressIndicator(),
-                    )
-                  : DropdownButtonFormField<int>(
-                      value: selectedSellerId,
-                      decoration: const InputDecoration(
-                        labelText: 'Vendedor (opcional)',
-                        helperText:
-                            'Si no eliges uno, se asignará automáticamente',
-                      ),
-                      items: sellers.map((seller) {
-                        return DropdownMenuItem<int>(
-                          value: seller.id,
-                          child: Text(seller.name),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedSellerId = value;
-                        });
-                      },
-                    ),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: passCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Contraseña'),
-              ),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: pass2Ctrl,
-                obscureText: true,
-                decoration:
-                    const InputDecoration(labelText: 'Confirmar contraseña'),
-              ),
-              const SizedBox(height: 20),
-
-              isLoading
-                  ? const CircularProgressIndicator()
-                  : SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: isLoading ? null : _register,
-                        child: const Text('Crear cuenta'),
-                      ),
-                    ),
-            ],
+          // 🌿 Fondo
+          Positioned.fill(
+            child: Image.asset(
+              'assets/logos/fondoGeneral.png',
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
+
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                children: [
+
+                  const SizedBox(height: 50),
+
+                  const Text(
+                    "Crear cuenta",
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+
+                  const SizedBox(height: 35),
+
+                  _inputField(nameCtrl, "Nombre"),
+                  const SizedBox(height: 14),
+
+                  _inputField(
+                    emailCtrl,
+                    "Email",
+                    keyboard: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 14),
+
+                  loadingSellers
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: CircularProgressIndicator(),
+                        )
+                      : DropdownButtonFormField<int>(
+                          value: selectedSellerId,
+                          decoration: _inputDecoration(
+                            "Vendedor (opcional)",
+                          ),
+                          items: sellers.map((seller) {
+                            return DropdownMenuItem<int>(
+                              value: seller.id,
+                              child: Text(seller.name),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              selectedSellerId = value;
+                            });
+                          },
+                        ),
+
+                  const SizedBox(height: 14),
+
+                  _inputField(passCtrl, "Contraseña", obscure: true),
+                  const SizedBox(height: 14),
+
+                  _inputField(pass2Ctrl, "Confirmar contraseña", obscure: true),
+
+                  const SizedBox(height: 30),
+
+                  isLoading
+                      ? const CircularProgressIndicator()
+                      : SizedBox(
+                          width: double.infinity,
+                          height: 54,
+                          child: ElevatedButton(
+                            onPressed: isLoading ? null : _register,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFAEDFC8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              elevation: 3,
+                            ),
+                            child: const Text(
+                              "Crear cuenta",
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.black87,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔹 INPUT STYLE
+  Widget _inputField(
+    TextEditingController controller,
+    String label, {
+    bool obscure = false,
+    TextInputType keyboard = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      keyboardType: keyboard,
+      decoration: _inputDecoration(label),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: Colors.white.withOpacity(0.9),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
       ),
     );
   }

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1029823216344",
+    "project_id": "me-lo-merezco-b4ae2",
+    "storage_bucket": "me-lo-merezco-b4ae2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1029823216344:android:20ef47e26f8114ea5175ad",
+        "android_client_info": {
+          "package_name": "com.example.me_lo_merezco"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXnPTbuOxFRE83RuNY_YqS95rtPsJXfls"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

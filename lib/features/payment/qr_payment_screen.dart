@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/services/order_service.dart';
-import '../../shared/models/order.dart';
 
 class QrPaymentScreen extends StatelessWidget {
   final String orderId;
@@ -66,23 +65,30 @@ class QrPaymentScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  // 🔑 PASO CLAVE: marcar como pago enviado
-            //      OrderService.updateOrderStatus(
-            //        orderId,
-            //        OrderStatus.paymentSent,
-             //     );
+                onPressed: () async {
+                  try {
+                    await OrderService.markPaymentSent(
+                      int.parse(orderId),
+                    );
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Pago enviado. Esperando confirmación del administrador.',
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Pago enviado. Esperando confirmación del administrador.',
+                        ),
                       ),
-                    ),
-                  );
+                    );
 
-                  // 🔁 Volvemos atrás (NO recreamos pantallas)
-                  Navigator.pop(context);
+                    Navigator.pop(context);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Error enviando el pago. Intenta nuevamente.',
+                        ),
+                      ),
+                    );
+                  }
                 },
                 child: const Text('Ya pagué'),
               ),

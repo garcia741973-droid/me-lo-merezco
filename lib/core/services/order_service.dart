@@ -10,7 +10,6 @@ class OrderService {
   // CLIENTE
   // =====================================================
 
-  /// 🔹 Obtener pedidos del cliente logueado
   static Future<List<Order>> fetchClientOrders() async {
     final token = await AuthService().getToken();
     if (token == null) {
@@ -25,9 +24,6 @@ class OrderService {
       },
     );
 
-    print('ORDERS STATUS: ${res.statusCode}');
-    print('ORDERS BODY: ${res.body}');
-
     if (res.statusCode != 200) {
       throw Exception('Error al cargar pedidos (${res.statusCode})');
     }
@@ -39,38 +35,33 @@ class OrderService {
         .toList();
   }
 
-  /// 🔹 Agregar cotización directamente al backend (nuevo)
   static Future<void> addQuote({
-  required String productName,
-  String? productUrl,
-  required double basePrice,
-}) async {
-  final token = await AuthService().getToken();
-  if (token == null) {
-    throw Exception('Usuario no autenticado');
+    required String productName,
+    String? productUrl,
+    required double basePrice,
+  }) async {
+    final token = await AuthService().getToken();
+    if (token == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final res = await http.post(
+      Uri.parse('$baseUrl/orders/add-quote'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'product_name': productName,
+        'product_url': productUrl,
+        'base_price': basePrice,
+      }),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Error agregando cotización (${res.statusCode})');
+    }
   }
-
-  final res = await http.post(
-    Uri.parse('$baseUrl/orders/add-quote'),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    },
-    body: jsonEncode({
-      'product_name': productName,
-      'product_url': productUrl,
-      'base_price': basePrice,
-    }),
-  );
-
-  print('ADD QUOTE STATUS: ${res.statusCode}');
-  print('ADD QUOTE BODY: ${res.body}');
-
-  if (res.statusCode != 200) {
-    throw Exception('Error agregando cotización (${res.statusCode})');
-  }
-}
-
 
   static Future<void> deleteOrderItem(int itemId) async {
     final token = await AuthService().getToken();
@@ -91,24 +82,6 @@ class OrderService {
     }
   }
 
-  static Future<bool> createOrderFromIntentions() async {
-    final token = await AuthService().getToken();
-    if (token == null) {
-      return false;
-    }
-
-    final res = await http.post(
-      Uri.parse('$baseUrl/orders/from-intentions'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    return res.statusCode == 201;
-  }
-
-  /// 🔹 Obtener un pedido por ID
   static Future<Order> fetchOrder(int orderId) async {
     final token = await AuthService().getToken();
     if (token == null) {
@@ -130,7 +103,6 @@ class OrderService {
     return Order.fromJson(jsonDecode(res.body));
   }
 
-  /// 🔹 Obtener ítems de un pedido
   static Future<List<dynamic>> fetchOrderItems(int orderId) async {
     final token = await AuthService().getToken();
     if (token == null) {
@@ -145,9 +117,6 @@ class OrderService {
       },
     );
 
-    print('ITEMS STATUS: ${res.statusCode}');
-    print('ITEMS BODY: ${res.body}');
-
     if (res.statusCode != 200) {
       throw Exception('Error al obtener items (${res.statusCode})');
     }
@@ -155,8 +124,62 @@ class OrderService {
     return jsonDecode(res.body) as List<dynamic>;
   }
 
+  static Future<void> requestOrderValidation(int orderId) async {
+    final token = await AuthService().getToken();
+    if (token == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final res = await http.patch(
+      Uri.parse('$baseUrl/orders/$orderId/request'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Error solicitando validación (${res.statusCode})');
+    }
+  }
+
+// =====================================================
+// CLIENTE – RECALCULAR QUOTES ANTES DE ENVIAR
+// =====================================================
+
+static Future<double> recalculateQuotes(int orderId) async {
+  final token = await AuthService().getToken();
+  if (token == null) {
+    throw Exception('Usuario no autenticado');
+  }
+
+  final res = await http.patch(
+    Uri.parse('$baseUrl/orders/$orderId/recalculate-quotes'),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception('Error recalculando cotizaciones (${res.statusCode})');
+  }
+
+  final data = jsonDecode(res.body);
+
+  final raw = data['new_total'];
+
+  if (raw == null) {
+    throw Exception('Respuesta inválida del servidor');
+  }
+
+  return double.parse(raw.toString());
+}
+
+
+
   // =====================================================
-  // ADMIN
+  // ADMIN – PENDIENTES
   // =====================================================
 
   static Future<int> fetchPendingOrdersCount() async {
@@ -174,7 +197,7 @@ class OrderService {
     );
 
     if (res.statusCode != 200) {
-      throw Exception('Error al cargar pendientes');
+      throw Exception('Error cargando pendientes');
     }
 
     final List<dynamic> data = jsonDecode(res.body);
@@ -182,7 +205,7 @@ class OrderService {
   }
 
   // =====================================================
-  // SELLER / ADMIN – ACCIONES SOBRE ITEMS
+  // ADMIN – APROBAR / RECHAZAR ITEM
   // =====================================================
 
   static Future<void> approveItem(int itemId) async {
@@ -223,15 +246,44 @@ class OrderService {
     }
   }
 
-  /// 🔹 Cliente solicita validación del carrito
-  static Future<void> requestOrderValidation(int orderId) async {
+// =====================================================
+// CLIENTE – ENVIAR ITEM A VALIDACIÓN
+// =====================================================
+
+static Future<void> requestItemValidation(int itemId) async {
+  final token = await AuthService().getToken();
+  if (token == null) {
+    throw Exception('Usuario no autenticado');
+  }
+
+  final res = await http.patch(
+    Uri.parse('$baseUrl/order-items/$itemId/request'),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception(
+      'Error enviando item para validación (${res.statusCode})',
+    );
+  }
+}
+
+
+  // =====================================================
+  // SELLER – RESUMEN
+  // =====================================================
+
+  static Future<Map<String, dynamic>> fetchSellerSummary() async {
     final token = await AuthService().getToken();
     if (token == null) {
-      throw Exception('Usuario no autenticado');
+      throw Exception('No autenticado');
     }
 
-    final res = await http.patch(
-      Uri.parse('$baseUrl/orders/$orderId/request'),
+    final res = await http.get(
+      Uri.parse('$baseUrl/orders/seller/summary'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -239,7 +291,78 @@ class OrderService {
     );
 
     if (res.statusCode != 200) {
-      throw Exception('Error solicitando validación (${res.statusCode})');
+      throw Exception('Error cargando resumen vendedor');
+    }
+
+    return jsonDecode(res.body);
+  }
+
+  // =====================================================
+  // CLIENTE – MARCAR PAGO ENVIADO
+  // =====================================================
+
+  static Future<void> markPaymentSent(int orderId) async {
+    final token = await AuthService().getToken();
+    if (token == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final res = await http.patch(
+      Uri.parse('$baseUrl/orders/$orderId/payment-sent'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Error enviando pago (${res.statusCode})');
+    }
+  }
+
+  // =====================================================
+  // ADMIN – CONFIRMAR PAGO
+  // =====================================================
+
+  static Future<void> confirmPayment(int orderId) async {
+    final token = await AuthService().getToken();
+    if (token == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final res = await http.patch(
+      Uri.parse('$baseUrl/orders/$orderId/confirm-payment'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Error confirmando pago (${res.statusCode})');
+    }
+  }
+
+  // =====================================================
+  // SELLER / ADMIN – MARCAR ENTREGADO
+  // =====================================================
+
+  static Future<void> markDelivered(int orderId) async {
+    final token = await AuthService().getToken();
+    if (token == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final res = await http.patch(
+      Uri.parse('$baseUrl/orders/$orderId/mark-delivered'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Error marcando entregado (${res.statusCode})');
     }
   }
 }

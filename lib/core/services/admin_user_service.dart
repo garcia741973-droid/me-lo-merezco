@@ -112,4 +112,46 @@ class AdminUserService {
       }
     }
   }
+
+// ================================
+// EDITAR USUARIO
+// PATCH /admin/users/:id
+// ================================
+static Future<void> updateUser({
+  required int userId,
+  int? sellerId,
+  double? commissionRate,
+}) async {
+  final headers = await _authHeaders();
+
+  final Map<String, dynamic> body = {};
+
+  if (sellerId != null) {
+    body['seller_id'] = sellerId;
+  }
+
+  if (commissionRate != null) {
+    body['commission_rate'] = commissionRate;
+  }
+
+  if (body.isEmpty) {
+    throw Exception('No hay datos para actualizar');
+  }
+
+  final res = await http.patch(
+    Uri.parse('$baseUrl/admin/users/$userId'),
+    headers: headers,
+    body: jsonEncode(body),
+  );
+
+  if (res.statusCode == 401 || res.statusCode == 403) {
+    throw Exception('Sesión expirada');
+  }
+
+  if (res.statusCode != 200) {
+    throw Exception('Error actualizando usuario');
+  }
+}
+
+
 }

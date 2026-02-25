@@ -15,7 +15,8 @@ class AdminOrdersScreen extends StatefulWidget {
 }
 
 class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
-  List<Order> _orders = [];
+  List<Order> _requestedOrders = [];
+  List<Order> _paymentPendingOrders = [];
   bool _loading = true;
 
   @override
@@ -28,13 +29,17 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     try {
       final allOrders = await OrderService.fetchClientOrders();
 
-      // 🔎 Admin ve solo pedidos solicitados
       final requestedOrders = allOrders
           .where((o) => o.status == OrderStatus.requested)
           .toList();
 
+      final paymentPendingOrders = allOrders
+          .where((o) => o.status == OrderStatus.paymentSent)
+          .toList();
+
       setState(() {
-        _orders = requestedOrders;
+        _requestedOrders = requestedOrders;
+        _paymentPendingOrders = paymentPendingOrders;
         _loading = false;
       });
     } catch (e) {
@@ -55,29 +60,36 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pedidos pendientes'),
+        title: const Text('Panel de pedidos'),
         centerTitle: true,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _orders.isEmpty
-              ? const Center(
-                  child: Text('No hay pedidos pendientes'),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadOrders,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _orders.length,
-                    itemBuilder: (context, index) {
-                      final order = _orders[index];
+          : RefreshIndicator(
+              onRefresh: _loadOrders,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
 
+                  // ============================
+                  // 📥 PENDIENTES DE VALIDACIÓN
+                  // ============================
+                  if (_requestedOrders.isNotEmpty) ...[
+                    const Text(
+                      '📥 Pendientes de validación',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ..._requestedOrders.map((order) {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
                           title: Text('Pedido #${order.id}'),
                           subtitle: Text(
-                            'Total actual: \$${order.total.toStringAsFixed(2)}',
+                            'Total: \$${order.total.toStringAsFixed(2)}',
                           ),
                           trailing: const Icon(Icons.arrow_forward_ios),
                           onTap: () async {
@@ -93,9 +105,56 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                           },
                         ),
                       );
-                    },
-                  ),
-                ),
+                    }),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // ============================
+                  // 💳 PAGOS PENDIENTES
+                  // ============================
+                  if (_paymentPendingOrders.isNotEmpty) ...[
+                    const Text(
+                      '💳 Pagos pendientes',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ..._paymentPendingOrders.map((order) {
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: ListTile(
+                          title: Text('Pedido #${order.id}'),
+                          subtitle: Text(
+                            'Total: \$${order.total.toStringAsFixed(2)}',
+                          ),
+                          trailing: ElevatedButton(
+                            onPressed: () async {
+                              await OrderService.confirmPayment(order.id);
+                              _loadOrders();
+                            },
+                            child: const Text('Confirmar pago'),
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+
+                  // ============================
+                  // SIN PEDIDOS
+                  // ============================
+                  if (_requestedOrders.isEmpty &&
+                      _paymentPendingOrders.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: 40),
+                        child: Text('No hay pedidos pendientes'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
     );
   }
 }
