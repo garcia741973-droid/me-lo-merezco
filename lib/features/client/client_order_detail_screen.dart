@@ -3,6 +3,7 @@ import '../../core/services/order_service.dart';
 import '../../core/services/auth_service.dart';
 import '../../shared/models/user.dart';
 import '../../shared/models/order.dart';
+import '../payment/qr_payment_screen.dart';
 
 class ClientOrderDetailScreen extends StatefulWidget {
   final int orderId;
@@ -20,6 +21,8 @@ class ClientOrderDetailScreen extends StatefulWidget {
 class _ClientOrderDetailScreenState extends State<ClientOrderDetailScreen> {
   Order? _order;
   List<dynamic> _items = [];
+  List<dynamic> _messages = [];
+
   bool _loading = true;
   bool _requesting = false;
 
@@ -31,15 +34,18 @@ class _ClientOrderDetailScreenState extends State<ClientOrderDetailScreen> {
 
   // ================= LOAD DATA =================
 
-  Future<void> _loadData() async {
+    Future<void> _loadData() async {
     try {
       final order = await OrderService.fetchOrder(widget.orderId);
       final items =
           await OrderService.fetchOrderItems(widget.orderId);
+      final messages =
+          await OrderService.fetchOrderMessages(widget.orderId);
 
       setState(() {
         _order = order;
         _items = items;
+        _messages = messages;
         _loading = false;
       });
     } catch (e) {
@@ -53,6 +59,7 @@ class _ClientOrderDetailScreenState extends State<ClientOrderDetailScreen> {
   // ================= REQUEST VALIDATION =================
 
   Future<void> _requestValidation() async {
+    print("🔥 BOTÓN PRESIONADO 🔥");
   if (_order == null) return;
 
   setState(() => _requesting = true);
@@ -147,6 +154,10 @@ class _ClientOrderDetailScreenState extends State<ClientOrderDetailScreen> {
     final isAdmin = user?.role == UserRole.admin;
     final isClient = user?.role == UserRole.client;
 
+print("REQUESTING STATE: $_requesting");
+print("ORDER STATUS: ${_order!.status}");
+print("IS CLIENT: $isClient");
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detalle del pedido'),
@@ -185,8 +196,9 @@ class _ClientOrderDetailScreenState extends State<ClientOrderDetailScreen> {
 
                   const SizedBox(height: 12),
 
-                  Expanded(
-                    child: _items.isEmpty
+                      Flexible(
+                        fit: FlexFit.loose,
+                        child: _items.isEmpty
                         ? const Center(
                             child: Text('No hay ítems en este pedido'),
                           )
@@ -278,6 +290,7 @@ class _ClientOrderDetailScreenState extends State<ClientOrderDetailScreen> {
                                                   ),
                                                 ],
                                               )
+
                                             : Text(
                                                 _formatItemStatus(
                                                     item[
@@ -294,6 +307,10 @@ class _ClientOrderDetailScreenState extends State<ClientOrderDetailScreen> {
                                                 ),
                                               ),
                                       ),
+
+                                  const SizedBox(height: 8),
+                                  ..._buildItemMessages(item),
+
                                     ],
                                   ),
                                 ),
@@ -307,6 +324,34 @@ class _ClientOrderDetailScreenState extends State<ClientOrderDetailScreen> {
                   _statusMessage(_order!.status),
 
                   const SizedBox(height: 12),
+
+// ================= BOTÓN PAGAR =================
+
+if (isClient &&
+    (_order!.status == OrderStatus.approvedForPayment ||
+     _order!.status == OrderStatus.paymentSent))
+  SizedBox(
+    width: double.infinity,
+    child: ElevatedButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => QrPaymentScreen(
+              orderId: _order!.id,
+            ),
+          ),
+        );
+      },
+      child: Text(
+        _order!.status == OrderStatus.approvedForPayment
+            ? 'Pagar anticipo'
+            : 'Pagar saldo',
+      ),
+    ),
+  ),
+
+const SizedBox(height: 12),
 
                   if (isClient &&
                       _order!.status ==
@@ -353,6 +398,285 @@ class _ClientOrderDetailScreenState extends State<ClientOrderDetailScreen> {
       ),
     );
   }
+
+List<Widget> _buildItemMessages(dynamic item) {
+  final itemMessages =
+      _messages.where((m) => m['item_id'] == item['id']).toList();
+
+  if (itemMessages.isEmpty) return [];
+
+  return itemMessages.map<Widget>((msg) {
+    final isActionable =
+        msg['action_required'] == true &&
+        msg['action_type'] == 'accept_condition' &&
+        msg['sender_role'] == 'admin';
+
+    final List<dynamic>? requiredFields =
+        msg['required_fields'];
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Observación del administrador:',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.orange,
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          Text(msg['message'] ?? ''),
+
+          if (msg['adjusted_price'] != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Nuevo precio: Bs ${msg['adjusted_price']}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+
+          // 🔹 Mostrar campos requeridos informativamente
+          if (requiredFields != null &&
+              requiredFields.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Información requerida:',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  ...requiredFields.map((f) => Text(
+                        "• ${f['label']}",
+                        style: const TextStyle(
+                            color: Colors.black87),
+                      )),
+                ],
+              ),
+            ),
+
+          if (isActionable)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          Map<String, dynamic>
+                              filledFields = {};
+
+                          if (requiredFields != null &&
+                              requiredFields
+                                  .isNotEmpty) {
+                            final formResult =
+                                await _showDynamicForm(
+                                    requiredFields);
+
+                            if (formResult == null)
+                              return;
+
+                            filledFields =
+                                formResult;
+                          }
+
+                          final result =
+                              await OrderService
+                                  .acceptOrderMessage(
+                            msg['id'],
+                            filledFields:
+                                filledFields,
+                          );
+
+                          await _loadData();
+
+                          if (!mounted) return;
+
+                          ScaffoldMessenger.of(
+                                  context)
+                              .showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Condición aceptada'),
+                            ),
+                          );
+
+                          if (result[
+                                  'order_status'] ==
+                              'approvedForPayment') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    QrPaymentScreen(
+                                  orderId:
+                                      _order!.id,
+                                ),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (!mounted) return;
+
+                          ScaffoldMessenger.of(
+                                  context)
+                              .showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Error: $e'),
+                            ),
+                          );
+                        }
+                      },
+                      child:
+                          const Text('Aceptar'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        try {
+                          await OrderService
+                              .rejectOrderMessage(
+                                  msg['id']);
+
+                          await _loadData();
+
+                          if (!mounted) return;
+
+                          ScaffoldMessenger.of(
+                                  context)
+                              .showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Condición rechazada'),
+                            ),
+                          );
+                        } catch (e) {
+                          if (!mounted) return;
+
+                          ScaffoldMessenger.of(
+                                  context)
+                              .showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Error: $e'),
+                            ),
+                          );
+                        }
+                      },
+                      style:
+                          OutlinedButton.styleFrom(
+                        foregroundColor:
+                            Colors.red,
+                      ),
+                      child:
+                          const Text('Rechazar'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }).toList();
+}
+
+Future<Map<String, dynamic>?> _showDynamicForm(
+    List<dynamic> fields) async {
+
+  final Map<String, TextEditingController>
+      controllers = {};
+
+  for (var f in fields) {
+    controllers[f['key']] =
+        TextEditingController();
+  }
+
+  return await showDialog<Map<String, dynamic>>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title:
+            const Text('Información requerida'),
+        content: SingleChildScrollView(
+          child: Column(
+            children: fields.map((f) {
+              return Padding(
+                padding:
+                    const EdgeInsets.only(
+                        bottom: 12),
+                child: TextField(
+                  controller:
+                      controllers[f['key']],
+                  decoration:
+                      InputDecoration(
+                    labelText:
+                        f['label'],
+                    border:
+                        const OutlineInputBorder(),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(context, null),
+            child:
+                const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Map<String, dynamic>
+                  result = {};
+
+              for (var f in fields) {
+                final value =
+                    controllers[f['key']]!
+                        .text
+                        .trim();
+
+                if (value.isEmpty) {
+                  return;
+                }
+
+                result[f['key']] =
+                    value;
+              }
+
+              Navigator.pop(
+                  context, result);
+            },
+            child:
+                const Text('Aceptar'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   // ================= UI HELPERS =================
 

@@ -29,6 +29,14 @@ class _AdminCreateOfferScreenState
   final titleCtrl = TextEditingController();
   final descCtrl = TextEditingController();
   final priceCtrl = TextEditingController();
+  final basePriceCtrl = TextEditingController();
+  final importPercentCtrl = TextEditingController();
+  final marginPercentCtrl = TextEditingController();
+  final platformCtrl = TextEditingController();
+  final sourceUrlCtrl = TextEditingController();
+  final sizeCtrl = TextEditingController();
+  final currencyCtrl = TextEditingController();
+  final colorCtrl = TextEditingController();
 
   // ---------------- FECHAS ----------------
   DateTime? startsAt;
@@ -54,9 +62,34 @@ class _AdminCreateOfferScreenState
 if (widget.offer != null) {
   titleCtrl.text = widget.offer!['title'] ?? '';
   descCtrl.text = widget.offer!['description'] ?? '';
-  priceCtrl.text =
-      widget.offer!['price']?.toString() ?? '';
+
   selectedCategoryId = widget.offer!['category_id'];
+
+  basePriceCtrl.text =
+      widget.offer!['base_purchase_price']?.toString() ?? '';
+
+  importPercentCtrl.text =
+    widget.offer!['cost_import_percent']?.toString() ?? '';
+
+  marginPercentCtrl.text =
+      widget.offer!['cost_margin_percent']?.toString() ?? '';
+
+  platformCtrl.text =
+      widget.offer!['platform'] ?? '';
+
+  sourceUrlCtrl.text =
+      widget.offer!['source_url'] ?? '';
+
+  sizeCtrl.text =
+      widget.offer!['size'] ?? '';
+
+  currencyCtrl.text =
+      widget.offer!['currency_original'] ?? '';
+
+  colorCtrl.text =
+      widget.offer!['color'] ?? '';
+
+  _imageUrl = widget.offer!['image_url'];
 }
 
 
@@ -88,6 +121,31 @@ if (widget.offer != null) {
     priceCtrl.dispose();
     super.dispose();
   }
+
+// =========================
+// CALCULAR PRECIO FINAL (Modelo A)
+// =========================
+double _calculateFinalPrice() {
+  final base = double.tryParse(
+        basePriceCtrl.text.replaceAll(',', '.'),
+      ) ??
+      0;
+
+  final importPercent = double.tryParse(
+        importPercentCtrl.text.replaceAll(',', '.'),
+      ) ??
+      0;
+
+  final marginPercent = double.tryParse(
+        marginPercentCtrl.text.replaceAll(',', '.'),
+      ) ??
+      0;
+
+  final importValue = base * importPercent / 100;
+  final marginValue = base * marginPercent / 100;
+
+  return base + importValue + marginValue;
+}
 
   void _showMessage(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -142,26 +200,16 @@ if (widget.offer != null) {
   Future<void> _createOffer() async {
     final title = titleCtrl.text.trim();
     final description = descCtrl.text.trim();
-    final priceText = priceCtrl.text.trim();
+
+    final price = _calculateFinalPrice();
+
+    if (price <= 0) {
+      _showMessage('El precio calculado no puede ser 0');
+      return;
+    }
 
     if (title.isEmpty) {
       _showMessage('El título es obligatorio');
-      return;
-    }
-
-    if (priceText.isEmpty) {
-      _showMessage('El precio es obligatorio');
-      return;
-    }
-
-final normalizedPriceText =
-    priceText.replaceAll(',', '.');
-
-final price =
-    double.tryParse(normalizedPriceText);
-
-    if (price == null) {
-      _showMessage('Precio inválido');
       return;
     }
 
@@ -194,6 +242,21 @@ final body = jsonEncode({
   'starts_at': startsAt?.toIso8601String(),
   'ends_at': endsAt?.toIso8601String(),
   'category_id': selectedCategoryId,
+
+  'base_purchase_price': double.tryParse(
+      basePriceCtrl.text.replaceAll(',', '.')),
+
+  'import_percent': double.tryParse(
+      importPercentCtrl.text.replaceAll(',', '.')),
+
+  'margin_percent': double.tryParse(
+      marginPercentCtrl.text.replaceAll(',', '.')),
+
+  'platform': platformCtrl.text.isEmpty ? null : platformCtrl.text,
+  'source_url': sourceUrlCtrl.text.isEmpty ? null : sourceUrlCtrl.text,
+  'size': sizeCtrl.text.isEmpty ? null : sizeCtrl.text,
+  'currency_original': currencyCtrl.text.isEmpty ? null : currencyCtrl.text,
+  'color': colorCtrl.text.isEmpty ? null : colorCtrl.text,
 });
 
 final res = widget.offer == null
@@ -287,15 +350,113 @@ final res = widget.offer == null
               ),
               const SizedBox(height: 12),
 
-              TextField(
-                controller: priceCtrl,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Precio *',
-                  hintText: 'Ej: 199.99',
+                TextField(
+                  controller: basePriceCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Precio base compra *',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: importPercentCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Importación %',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: marginPercentCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Margen %',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+
+                const SizedBox(height: 20),
+
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Precio final: ${_calculateFinalPrice().toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 20),
+
+              const SizedBox(height: 30),
+
+              const Text(
+                'Datos de origen',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: platformCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Tienda / Plataforma',
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: sourceUrlCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'URL del producto',
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: sizeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Talla disponible',
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: colorCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Color',
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: currencyCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Moneda original',
+                ),
+              ),
+
               const SizedBox(height: 20),
 
               // ---------- CATEGORÍA ----------

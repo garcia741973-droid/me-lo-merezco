@@ -10,6 +10,10 @@ import 'admin_users_screen.dart';
 import 'admin_offers_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_financial_screen.dart';
+import 'admin_qr_management_screen.dart';
+
+import '../communications/screens/admin_communications_screen.dart';
+import '../communications/screens/chat_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -74,33 +78,49 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 16),
                   child: Row(
-  children: [
-    Expanded(
-      child: const Text(
-        "Panel Admin.",
-        style: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-        overflow: TextOverflow.ellipsis,
-      ),
-    ),
-    IconButton(
-      icon: const Icon(Icons.logout, color: Colors.white),
-      onPressed: () async {
-        await AuthService().logout();
-        if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => const LoginScreen(),
-          ),
-          (route) => false,
-        );
-      },
-    ),
-  ],
-)
+                    children: [
+                      Expanded(
+                        child: const Text(
+                          "Panel Admin.",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+
+                      // 💬 Comunicaciones
+                    IconButton(
+                      icon: const Icon(Icons.support_agent, color: Colors.white),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                AdminCommunicationsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                      // 🚪 Logout
+                         IconButton(
+                        icon: const Icon(Icons.logout, color: Colors.white),
+                        onPressed: () async {
+                          await AuthService().logout();
+                          if (!mounted) return;
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (_) => const LoginScreen(),
+                            ),
+                            (route) => false,
+                          );
+                        },
+                      ),
+                    ],
+                  )
                 ),
 
                 Expanded(
@@ -200,7 +220,22 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                             );
                           },
                         ),
+const SizedBox(height: 18),
 
+_tile(
+  icon: Icons.qr_code,
+  title: 'Gestión QR Pagos',
+  subtitle: 'Configurar porcentaje y vigencia',
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            const AdminQrManagementScreen(),
+      ),
+    );
+  },
+),
                         const SizedBox(height: 30),
                       ],
                     ),

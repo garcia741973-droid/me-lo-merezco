@@ -7,6 +7,8 @@ import '../../core/services/offer_service.dart';
 
 import 'client_offer_detail_screen.dart';
 
+import '../communications/screens/chat_screen.dart';
+import '../../core/services/auth_service.dart';
 
 class ClientMainMenuScreen extends StatefulWidget {
   const ClientMainMenuScreen({super.key});
@@ -237,9 +239,27 @@ Widget build(BuildContext context) {
   const aliexpress = 'assets/logos/aliexpress.png';
   const temu = 'assets/logos/temu.png';
 
-  return Scaffold(
-    body: Stack(
-      children: [
+    return Scaffold(
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: Colors.black,
+          child: const Icon(Icons.support_agent, color: Colors.white),
+          onPressed: () {
+            final user = AuthService().currentUser;
+            if (user == null) return;
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ChatScreen(
+                  otherUserId: 1,
+                  currentUserId: user.id,
+                ),
+              ),
+            );
+          },
+        ),
+      body: Stack(
+        children: [
 
         // 🌿 Fondo emocional claro
         Positioned.fill(

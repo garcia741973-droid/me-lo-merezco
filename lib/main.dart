@@ -9,54 +9,119 @@ import 'app_entry_point.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+// ✅ CONTADOR SEGURO PARA ANDROID (32-bit safe)
+int _notificationIdCounter = 0;
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   debugPrint('Background message: ${message.messageId}');
 }
 
+Future<void> _initLocalNotifications() async {
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  const DarwinInitializationSettings initializationSettingsIOS =
+      DarwinInitializationSettings();
+
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+    iOS: initializationSettingsIOS,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse response) {
+      debugPrint('Local notification tapped. Payload: ${response.payload}');
+    },
+  );
+
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'high_importance_channel_v2',
+    'High Importance Notifications',
+    description: 'This channel is used for important notifications.',
+    importance: Importance.max,
+  );
+
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // Registrar handler para mensajes en background
+  await _initLocalNotifications();
+
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Pedir permiso (iOS) — muestra diálogo de permiso si es la primera vez
-  NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
+  NotificationSettings settings =
+      await FirebaseMessaging.instance.requestPermission(
     alert: true,
-    announcement: false,
     badge: true,
-    carPlay: false,
-    criticalAlert: false,
-    provisional: false,
     sound: true,
   );
+
   debugPrint('User granted permission: ${settings.authorizationStatus}');
 
-  // IMPORTANTE: permitir que iOS muestre notificaciones incluso si la app está en foreground
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+  await FirebaseMessaging.instance
+      .setForegroundNotificationPresentationOptions(
     alert: true,
     badge: true,
     sound: true,
   );
 
-  // Obtener el token FCM del dispositivo y mostrarlo (envíalo al backend)
   final fcmToken = await FirebaseMessaging.instance.getToken();
   debugPrint('FCM TOKEN: $fcmToken');
-  // TODO: aquí puedes llamar a tu endpoint /devices para registrar el token en tu backend.
-  // Ejemplo (pseudo):
-  // await sendTokenToBackend(fcmToken);
 
-  // Escuchar mensajes cuando la app está en foreground
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+    debugPrint('🔥 TOKEN REFRESHED: $newToken');
+  });
+
+  // ✅ FOREGROUND HANDLER CORREGIDO
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
     debugPrint('onMessage received: ${message.messageId}');
-    debugPrint('Notification title: ${message.notification?.title}');
-    debugPrint('Notification body: ${message.notification?.body}');
     debugPrint('Message data: ${message.data}');
-    // Nota: con setForegroundNotificationPresentationOptions(alert: true, ...) iOS mostrará
-    // la notificación por defecto. Si quieres manejarla tú (ej. diálogo o Snackbar),
-    // implementa lógica UI aquí o usa flutter_local_notifications.
+
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+      'high_importance_channel_v3',
+      'High Importance Notifications',
+      channelDescription: 'This channel is used for important notifications.',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      category: AndroidNotificationCategory.message,
+      fullScreenIntent: false,
+      ticker: 'ticker',
+    );
+
+    const NotificationDetails notificationDetails =
+        NotificationDetails(android: androidDetails);
+
+    // ✅ ID SEGURO
+    _notificationIdCounter++;
+
+    await flutterLocalNotificationsPlugin.show(
+      _notificationIdCounter,
+      message.data['title'] ?? 'Notificación',
+      message.data['body'] ?? '',
+      notificationDetails,
+      payload: message.data.isNotEmpty ? message.data.toString() : null,
+    );
+  });
+
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    debugPrint('Notification clicked: ${message.messageId}');
+    debugPrint('onMessageOpenedApp data: ${message.data}');
   });
 
   runApp(const MyApp());

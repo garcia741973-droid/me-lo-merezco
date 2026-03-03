@@ -32,6 +32,9 @@ class AuthService {
       }),
     );
 
+ print("LOGIN STATUS: ${res.statusCode}");
+print("LOGIN BODY: ${res.body}");   
+
     if (res.statusCode == 401 || res.statusCode == 403) {
       return false;
     }
@@ -95,10 +98,11 @@ class AuthService {
   // =========================
   // RESTAURAR SESIÓN (APP START)
   // =========================
-  Future<bool> fetchCurrentUserFromToken() async {
-    final token = await getToken();
-    if (token == null) return false;
+Future<bool> fetchCurrentUserFromToken() async {
+  final token = await getToken();
+  if (token == null) return false;
 
+  try {
     final res = await http.get(
       Uri.parse('$_baseUrl/auth/me'),
       headers: {
@@ -113,13 +117,24 @@ class AuthService {
       return true;
     }
 
+    // 🔐 Solo cerrar sesión si el backend confirma 401 real
     if (res.statusCode == 401 || res.statusCode == 403) {
+      print("⚠️ Token inválido confirmado por backend");
       await logout();
       return false;
     }
 
-    throw Exception('Error verificando sesión (${res.statusCode})');
+    // Otros códigos no deben hacer logout automático
+    print("⚠️ Código inesperado: ${res.statusCode}");
+    return true;
+
+  } catch (e) {
+    // 🚨 ERROR DE RED (ej: Render dormido)
+    print("⚠️ Error de red al verificar sesión: $e");
+    // NO hacer logout
+    return true;
   }
+}
 
   // =========================
   // TOKEN
@@ -133,11 +148,7 @@ class AuthService {
   // LOGOUT
   // =========================
   Future<void> logout() async {
-    final token = await getToken();
-
-    if (token != null) {
-      await _removeDeviceToken(token);
-    }
+    
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);

@@ -33,7 +33,7 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
   void initState() {
     super.initState();
 
-    _initPush();  // 👈 ESTA LÍNEA
+//    _initPush();  // 👈 ESTA LÍNEA
 //    WidgetsBinding.instance.addPostFrameCallback((_) {
 //      _initPush();
 //      });
@@ -87,31 +87,7 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
   }
 
 
-Future<void> _initPush() async {
-  try {
-    FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-    await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    String? token = await messaging.getToken();
-    debugPrint("FCM TOKEN: $token");
-
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint("Foreground message: ${message.messageId}");
-    });
-
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint("Notification clicked: ${message.messageId}");
-    });
-
-  } catch (e) {
-    debugPrint("Push init error: $e");
-  }
-}
+// aca se borro initPush() por si acaso
 
   void _start() async {
     await _miniController.forward();

@@ -5,6 +5,8 @@ import '../../core/services/order_service.dart';
 import '../../shared/models/user.dart';
 import '../auth/login_screen.dart';
 
+import '../communications/screens/chat_screen.dart';
+
 class SellerOrdersScreen extends StatefulWidget {
   const SellerOrdersScreen({super.key});
 
@@ -74,8 +76,26 @@ class _SellerOrdersScreenState
       return const LoginScreen();
     }
 
-    return Scaffold(
-      body: Stack(
+  return Scaffold(
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: Colors.black,
+          child: const Icon(Icons.support_agent, color: Colors.white),
+          onPressed: () {
+            final user = AuthService().currentUser;
+            if (user == null) return;
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ChatScreen(
+                  otherUserId: 1,
+                  currentUserId: user.id,
+                ),
+              ),
+            );
+          },
+        ),
+        body: Stack(
         children: [
 
           // 🌿 Fondo

@@ -10,21 +10,32 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  url_launcher: ^6.2.5  
   # otras dependencias...
   shared_preferences: ^2.0.15
   webview_flutter: ^4.7.0
   image_picker: ^1.0.7
+  permission_handler: ^11.3.0
 
   cupertino_icons: ^1.0.8
   http: ^1.2.0
   google_fonts: ^6.2.1
   firebase_core: ^3.8.0
   firebase_messaging: ^15.1.0
+  flutter_local_notifications: ^17.2.1
+  path_provider: ^2.1.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logos/ic_launcher.png"
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true

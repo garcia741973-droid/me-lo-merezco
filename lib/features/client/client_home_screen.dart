@@ -8,6 +8,8 @@ import 'client_orders_screen.dart';
 import 'client_offers_screen.dart';
 import 'client_main_menu_screen.dart';
 
+import '../communications/screens/chat_screen.dart';
+
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
 
@@ -45,6 +47,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       appBar: AppBar(
         title: const Text('Me lo merezco'),
         actions: [
+          // 🔐 Cambiar contraseña
           IconButton(
             icon: const Icon(Icons.lock_outline),
             onPressed: () {
@@ -56,6 +59,27 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               );
             },
           ),
+
+          // 💬 Contactar administrador
+          IconButton(
+            icon: const Icon(Icons.support_agent),
+            onPressed: () {
+              final user = AuthService().currentUser;
+              if (user == null) return;
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChatScreen(
+                    otherUserId: 1, // admin único
+                    currentUserId: user.id,
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // ☰ Menú
           PopupMenuButton<String>(
             onSelected: (value) {
               switch (value) {
@@ -66,8 +90,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   setState(() => _bottomIndex = 2);
                   break;
                 case 'cart':
-                  setState(() => _bottomIndex = 1);
-                  break;
                 case 'orders':
                   setState(() => _bottomIndex = 1);
                   break;
