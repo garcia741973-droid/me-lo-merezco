@@ -17,6 +17,8 @@ class _AdminOffersScreenState extends State<AdminOffersScreen> {
   bool loading = true;
   List<dynamic> offers = [];
 
+  int? expandedOfferId; 
+
   @override
   void initState() {
     super.initState();
@@ -129,7 +131,43 @@ class _AdminOffersScreenState extends State<AdminOffersScreen> {
                     final o = offers[i];
                     return ListTile(
                       title: Text(o['title']),
-                      subtitle: Text(o['description'] ?? ''),
+                      subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          o['description'] ?? '',
+                          maxLines: expandedOfferId == o['id'] ? null : 2,
+                          overflow: expandedOfferId == o['id']
+                              ? TextOverflow.visible
+                              : TextOverflow.ellipsis,
+                        ),
+
+                        if ((o['description'] ?? '').length > 80)
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                if (expandedOfferId == o['id']) {
+                                  expandedOfferId = null;
+                                } else {
+                                  expandedOfferId = o['id'];
+                                }
+                              });
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                expandedOfferId == o['id']
+                                    ? 'Ver menos'
+                                    : 'Ver más',
+                                style: const TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                       trailing: Row(
   mainAxisSize: MainAxisSize.min,
   children: [

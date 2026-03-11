@@ -58,42 +58,111 @@ print("LOGIN BODY: ${res.body}");
   // =========================
   // REGISTER (SIEMPRE CLIENTE)
   // =========================
-  Future<bool> register({
-    required String name,
-    required String email,
-    required String password,
-    int? sellerId,
-  }) async {
-    final res = await http.post(
-      Uri.parse('$_baseUrl/auth/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'name': name,
-        'email': email,
-        'password': password,
-        if (sellerId != null) 'seller_id': sellerId,
-      }),
-    );
+    Future<bool> register({
+      required String name,
+      required String email,
+      required String password,
+      required String documentId,
+      required String phone,
+      required String birthDate,
+      required String country,
+      required String city,
+      String? address,
+      List<String>? interests,
+      int? sellerId,
+    }) async {
 
-    if (res.statusCode == 409) {
-      return false;
+      final res = await http.post(
+        Uri.parse('$_baseUrl/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'name': name,
+          'email': email,
+          'password': password,
+          'document_id': documentId,
+          'phone': phone,
+          'birth_date': birthDate,
+          'country': country,
+          'city': city,
+          'address': address,
+          'interests': interests ?? [],
+          if (sellerId != null) 'seller_id': sellerId,
+        }),
+      );
+
+      if (res.statusCode == 409) {
+        return false;
+      }
+
+      if (res.statusCode != 200 && res.statusCode != 201) {
+        throw Exception('Error del servidor (${res.statusCode})');
+      }
+
+      final data = jsonDecode(res.body);
+      final prefs = await SharedPreferences.getInstance();
+
+      await prefs.setString(_tokenKey, data['token']);
+      _currentUser = _userFromJson(data['user']);
+
+      await _registerDeviceToken(data['token']);
+
+      return true;
     }
 
-    if (res.statusCode != 200 && res.statusCode != 201) {
-      throw Exception('Error del servidor (${res.statusCode})');
+    // =========================
+    // REQUEST RESET CODE
+    // =========================
+    Future<void> requestResetCode(String email) async {
+
+      final res = await http.post(
+        Uri.parse('$_baseUrl/auth/request-reset-code'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+        }),
+      );
+
+      if (res.statusCode != 200) {
+        throw Exception('Error enviando código');
+      }
+
     }
 
-    final data = jsonDecode(res.body);
-    final prefs = await SharedPreferences.getInstance();
+    Future<bool> verifyResetCode(String email, String code) async {
 
-    await prefs.setString(_tokenKey, data['token']);
-    _currentUser = _userFromJson(data['user']);
+      final res = await http.post(
+        Uri.parse('$_baseUrl/auth/verify-reset-code'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'code': code,
+        }),
+      );
 
-    // 🔔 Registrar FCM token automáticamente
-    await _registerDeviceToken(data['token']);
+      return res.statusCode == 200;
 
-    return true;
-  }
+    }
+
+    Future<bool> setNewPassword(
+      String email,
+      String code,
+      String newPassword,
+    ) async {
+
+      final res = await http.post(
+        Uri.parse('$_baseUrl/auth/set-new-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'code': code,
+          'new_password': newPassword,
+        }),
+      );
+
+      return res.statusCode == 200;
+
+    }
+
 
   // =========================
   // RESTAURAR SESIÓN (APP START)

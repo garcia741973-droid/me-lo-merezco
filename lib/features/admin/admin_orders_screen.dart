@@ -86,7 +86,9 @@ Future<void> _loadOrders({
   Widget build(BuildContext context) {
     final user = AuthService().currentUser;
 
-    if (user == null || user.role != UserRole.admin) {
+    if (user == null ||
+        (user.role != UserRole.admin &&
+        user.role != UserRole.operador)) {
       return const LoginScreen();
     }
 

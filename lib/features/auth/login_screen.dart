@@ -6,6 +6,10 @@ import '../../shared/models/user.dart';
 import '../client/client_home_screen.dart';
 import '../admin/admin_home_screen.dart';
 import '../seller/seller_orders_screen.dart';
+import '../superadmin/superadmin_home_screen.dart';
+import '../operator/operator_home_screen.dart';
+
+import '../auth/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -52,13 +56,25 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       Widget destination;
+
       switch (user.role) {
+
+        case UserRole.superadmin:
+          destination = const SuperAdminHomeScreen();
+          break;
+
         case UserRole.admin:
           destination = const AdminHomeScreen();
           break;
+
+        case UserRole.operador:
+          destination = const OperatorHomeScreen();
+          break;
+
         case UserRole.seller:
           destination = const SellerOrdersScreen();
           break;
+
         case UserRole.client:
         default:
           destination = const ClientHomeScreen();
@@ -94,9 +110,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      body: Stack(
+      return Scaffold(
+        extendBodyBehindAppBar: true,
+
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black87),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+          ),
+        ),
+
+        body: Stack(
         children: [
 
           // 🌿 Fondo real visible
@@ -165,6 +193,27 @@ class _LoginScreenState extends State<LoginScreen> {
                             _obscurePassword = !_obscurePassword;
                           });
                         },
+                      ),
+                    ),
+                  ),
+
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ForgotPasswordScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "¿Olvidaste tu contraseña?",
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ),

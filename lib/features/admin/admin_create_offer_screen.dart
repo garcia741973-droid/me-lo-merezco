@@ -28,7 +28,6 @@ class _AdminCreateOfferScreenState
   // ---------------- CONTROLLERS ----------------
   final titleCtrl = TextEditingController();
   final descCtrl = TextEditingController();
-  final priceCtrl = TextEditingController();
   final basePriceCtrl = TextEditingController();
   final importPercentCtrl = TextEditingController();
   final marginPercentCtrl = TextEditingController();
@@ -37,6 +36,8 @@ class _AdminCreateOfferScreenState
   final sizeCtrl = TextEditingController();
   final currencyCtrl = TextEditingController();
   final colorCtrl = TextEditingController();
+
+  final finalPriceCtrl = TextEditingController(); // ✅ ESTE ES NUEVO
 
   // ---------------- FECHAS ----------------
   DateTime? startsAt;
@@ -49,6 +50,14 @@ class _AdminCreateOfferScreenState
 
   bool isLoading = false;
 
+// ---------------- EXCHANGE RATES ----------------
+  double? rateUsd;
+  double? rateClp;
+  double? priceBob;
+  bool loadingRate = false;
+
+  String selectedCurrency = 'USD';
+
   // ---------------- CATEGORÍAS ----------------
   int? selectedCategoryId;
   List<dynamic> categories = [];
@@ -57,22 +66,32 @@ class _AdminCreateOfferScreenState
   @override
   void initState() {
     super.initState();
+
+
     _loadCategories();
+    _loadExchangeRates();
+
+    Future.delayed(const Duration(milliseconds: 200), () {
+      _calculateBob();
+    });    
 
 if (widget.offer != null) {
   titleCtrl.text = widget.offer!['title'] ?? '';
   descCtrl.text = widget.offer!['description'] ?? '';
+
+  finalPriceCtrl.text =
+        widget.offer!['price']?.toString() ?? '';
 
   selectedCategoryId = widget.offer!['category_id'];
 
   basePriceCtrl.text =
       widget.offer!['base_purchase_price']?.toString() ?? '';
 
-  importPercentCtrl.text =
-    widget.offer!['cost_import_percent']?.toString() ?? '';
+//  importPercentCtrl.text =
+//    widget.offer!['cost_import_percent']?.toString() ?? '';
 
-  marginPercentCtrl.text =
-      widget.offer!['cost_margin_percent']?.toString() ?? '';
+//  marginPercentCtrl.text =
+//      widget.offer!['cost_margin_percent']?.toString() ?? '';
 
   platformCtrl.text =
       widget.offer!['platform'] ?? '';
@@ -90,8 +109,10 @@ if (widget.offer != null) {
       widget.offer!['color'] ?? '';
 
   _imageUrl = widget.offer!['image_url'];
-}
 
+  _calculateBob();
+
+}
 
   }
 
@@ -114,19 +135,83 @@ if (widget.offer != null) {
     }
   }
 
-  @override
-  void dispose() {
-    titleCtrl.dispose();
-    descCtrl.dispose();
-    priceCtrl.dispose();
-    super.dispose();
-  }
+  // =========================
+  // LOAD EXCHANGE RATES
+  // =========================
+    Future<void> _loadExchangeRates() async {
+      try {
+        setState(() => loadingRate = true);
 
+        final token = await AuthService().getToken();
+
+        final res = await http.get(
+          Uri.parse(
+            'https://me-lo-merezco-backend.onrender.com/exchange/active',
+          ),
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+        );
+
+        print(res.body);
+
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+
+          setState(() {
+            rateUsd = (data['USD'] as num?)?.toDouble();
+            rateClp = (data['CLP'] as num?)?.toDouble();
+          });
+
+          _calculateBob();
+        }
+      } catch (e) {
+        debugPrint('Error cargando tasas: $e');
+      } finally {
+        if (mounted) {
+          setState(() => loadingRate = false);
+        }
+      }
+    }
+
+  // =========================
+  // CALCULAR PRECIO EN BOB
+  // =========================
+      void _calculateBob() {
+        final base = double.tryParse(
+              basePriceCtrl.text.replaceAll(',', '.'),
+            ) ??
+            0;
+
+        if (base <= 0) {
+          setState(() => priceBob = null);
+          return;
+        }
+
+        double? result;
+
+        if (selectedCurrency == 'BOB') {
+          result = base;
+        }
+
+        if (selectedCurrency == 'USD' && rateUsd != null) {
+          result = base * rateUsd!;
+        }
+
+        if (selectedCurrency == 'CLP' && rateClp != null) {
+          result = base * rateClp!;
+        }
+
+        setState(() {
+          priceBob = result;
+        });
+      }
 // =========================
 // CALCULAR PRECIO FINAL (Modelo A)
 // =========================
-double _calculateFinalPrice() {
-  final base = double.tryParse(
+  double _calculateFinalPrice() {
+  final base = priceBob ??
+      double.tryParse(
         basePriceCtrl.text.replaceAll(',', '.'),
       ) ??
       0;
@@ -201,7 +286,9 @@ double _calculateFinalPrice() {
     final title = titleCtrl.text.trim();
     final description = descCtrl.text.trim();
 
-    final price = _calculateFinalPrice();
+    final price =
+    double.tryParse(finalPriceCtrl.text.replaceAll(',', '.')) ??
+    _calculateFinalPrice();
 
     if (price <= 0) {
       _showMessage('El precio calculado no puede ser 0');
@@ -234,9 +321,11 @@ double _calculateFinalPrice() {
     : Uri.parse(
         'https://me-lo-merezco-backend.onrender.com/admin/offers/${widget.offer!['id']}');
 
+
 final body = jsonEncode({
+
   'title': title,
-  'description': description.isEmpty ? null : description,
+  'description': description,
   'price': price,
   'image_url': _imageUrl,
   'starts_at': startsAt?.toIso8601String(),
@@ -246,20 +335,27 @@ final body = jsonEncode({
   'base_purchase_price': double.tryParse(
       basePriceCtrl.text.replaceAll(',', '.')),
 
-  'import_percent': double.tryParse(
+  'cost_import_percent': double.tryParse(
       importPercentCtrl.text.replaceAll(',', '.')),
 
-  'margin_percent': double.tryParse(
+  'cost_margin_percent': double.tryParse(
       marginPercentCtrl.text.replaceAll(',', '.')),
 
-  'platform': platformCtrl.text.isEmpty ? null : platformCtrl.text,
-  'source_url': sourceUrlCtrl.text.isEmpty ? null : sourceUrlCtrl.text,
-  'size': sizeCtrl.text.isEmpty ? null : sizeCtrl.text,
-  'currency_original': currencyCtrl.text.isEmpty ? null : currencyCtrl.text,
-  'color': colorCtrl.text.isEmpty ? null : colorCtrl.text,
+  'platform': platformCtrl.text,
+  'source_url': sourceUrlCtrl.text,
+  'size': sizeCtrl.text,
+  'currency_original': selectedCurrency,
+  'color': colorCtrl.text,
 });
 
+
+print("======= URL =======");
+print(uri);
+print("===================");
+
 final res = widget.offer == null
+
+
     ? await http.post(
         uri,
         headers: {
@@ -277,6 +373,17 @@ final res = widget.offer == null
         body: body,
       );
 
+print("======= BODY ENVIADO =======");
+print(body);
+print("============================"); 
+
+print("======= RESPONSE STATUS =======");
+print(res.statusCode);
+
+
+print("======= RESPONSE BODY =======");
+print(res.body);
+print("==============================");
 
       if (res.statusCode == 201 || res.statusCode == 200) {
   _showMessage(
@@ -323,6 +430,25 @@ final res = widget.offer == null
   // =========================
   @override
   Widget build(BuildContext context) {
+
+
+    double baseBs = priceBob ?? 0;
+
+    double importPercent =
+        double.tryParse(importPercentCtrl.text.replaceAll(',', '.')) ?? 0;
+
+    double marginPercent =
+        double.tryParse(marginPercentCtrl.text.replaceAll(',', '.')) ?? 0;
+
+    double importCost = baseBs * importPercent / 100;
+    double marginCost = baseBs * marginPercent / 100;
+
+    double finalPrice = baseBs + importCost + marginCost;
+
+      if (finalPriceCtrl.text.isEmpty && finalPrice > 0) {
+        finalPriceCtrl.text = finalPrice.toStringAsFixed(0);
+      }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Crear oferta'),
@@ -355,10 +481,101 @@ final res = widget.offer == null
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
-                    labelText: 'Precio base compra *',
+                    labelText: 'Precio proveedor',
                   ),
-                  onChanged: (_) => setState(() {}),
+                  onChanged: (_) {
+                    _calculateBob();
+                    setState(() {});
+                  },
                 ),
+
+//              const SizedBox(height: 20),
+
+                DropdownButtonFormField<String>(
+                  value: selectedCurrency,
+                  decoration: const InputDecoration(
+                    labelText: 'Moneda proveedor',
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'USD', child: Text('USD')),
+                    DropdownMenuItem(value: 'CLP', child: Text('CLP')),
+                    DropdownMenuItem(value: 'BOB', child: Text('BOB')),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedCurrency = value!;
+                      priceBob = null; // reinicia cálculo anterior
+                    });
+
+                    _calculateBob();
+                  },
+                ),
+
+                const SizedBox(height: 12),
+
+                if (priceBob != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Conversión automática',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text('Precio en Bs: ${priceBob!.toStringAsFixed(2)}'),
+                        if (selectedCurrency == 'USD' && rateUsd != null)
+                          Text('Tipo cambio USD: $rateUsd'),
+                        if (selectedCurrency == 'CLP' && rateClp != null)
+                          Text('Tipo cambio CLP: $rateClp'),
+                      ],
+                    ),
+                  ),              
+
+                  if (priceBob != null)
+                    Container(
+                      margin: const EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+
+                          const Text(
+                            'Resumen del cálculo',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          Text('Costo base Bs: ${baseBs.toStringAsFixed(2)}'),
+                          Text('Importación: ${importCost.toStringAsFixed(2)}'),
+                          Text('Margen: ${marginCost.toStringAsFixed(2)}'),
+
+                          const Divider(),
+
+                          Text(
+                            'Precio final Bs: ${finalPrice.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                        ],
+                      ),
+                    ),
 
                 const SizedBox(height: 12),
 
@@ -400,7 +617,17 @@ final res = widget.offer == null
                     ),
                   ),
                 ),
-              const SizedBox(height: 20),
+
+                const SizedBox(height: 16),
+
+                TextField(
+                  controller: finalPriceCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Precio final de venta (editable)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),                
 
               const SizedBox(height: 30),
 
@@ -449,13 +676,6 @@ final res = widget.offer == null
               ),
 
               const SizedBox(height: 12),
-
-              TextField(
-                controller: currencyCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Moneda original',
-                ),
-              ),
 
               const SizedBox(height: 20),
 

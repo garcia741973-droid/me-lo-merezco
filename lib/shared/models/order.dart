@@ -13,6 +13,8 @@ class Order {
   final double total;
   final OrderStatus status;
 
+  final DateTime? createdAt;
+
   // NUEVOS CAMPOS (opcionales)
   final DateTime? requestedAt;
   final DateTime? approvedForPaymentAt;
@@ -25,6 +27,7 @@ class Order {
     required this.id,
     required this.total,
     required this.status,
+    this.createdAt,
     this.requestedAt,
     this.approvedForPaymentAt,
     this.paymentSentAt,
@@ -45,6 +48,9 @@ class Order {
       status: OrderStatus.values.firstWhere(
         (e) => e.name == json['status'],
       ),
+      
+      createdAt: parseDate(json['created_at']),
+
       requestedAt: parseDate(json['requested_at']),
       approvedForPaymentAt: parseDate(json['approved_for_payment_at']),
       paymentSentAt: parseDate(json['payment_sent_at']),
@@ -54,6 +60,3 @@ class Order {
     );
   }
 }
-
-
-

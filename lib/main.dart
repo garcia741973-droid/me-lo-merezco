@@ -11,6 +11,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'core/services/auth_service.dart';
+
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
@@ -42,7 +46,7 @@ Future<void> _initLocalNotifications() async {
   );
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'high_importance_channel_v2',
+    'high_importance_channel',
     'High Importance Notifications',
     description: 'This channel is used for important notifications.',
     importance: Importance.max,
@@ -81,18 +85,39 @@ Future<void> main() async {
   final fcmToken = await FirebaseMessaging.instance.getToken();
   debugPrint('FCM TOKEN: $fcmToken');
 
-  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
     debugPrint('🔥 TOKEN REFRESHED: $newToken');
+
+    final auth = AuthService();
+    final token = await auth.getToken();
+
+    if (token != null) {
+      await http.post(
+        Uri.parse('https://me-lo-merezco-backend.onrender.com/devices'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'fcm_token': newToken,
+          'platform': 'ios',
+        }),
+      );
+    }
   });
 
   // ✅ FOREGROUND HANDLER CORREGIDO
   FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+
+debugPrint("🔥 PUSH RECIBIDO EN FOREGROUND");
+
     debugPrint('onMessage received: ${message.messageId}');
     debugPrint('Message data: ${message.data}');
+    debugPrint('Notification: ${message.notification}');
 
     const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
-      'high_importance_channel_v3',
+      'high_importance_channel',
       'High Importance Notifications',
       channelDescription: 'This channel is used for important notifications.',
       importance: Importance.max,
@@ -112,8 +137,8 @@ Future<void> main() async {
 
     await flutterLocalNotificationsPlugin.show(
       _notificationIdCounter,
-      message.data['title'] ?? 'Notificación',
-      message.data['body'] ?? '',
+      message.notification?.title ?? message.data['title'] ?? 'Notificación',
+      message.notification?.body ?? message.data['body'] ?? '',
       notificationDetails,
       payload: message.data.isNotEmpty ? message.data.toString() : null,
     );

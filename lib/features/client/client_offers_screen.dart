@@ -329,7 +329,7 @@ else
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              '\$${o['price']}',
+                              'Bs ${o['price']}',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,

@@ -3,6 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
+import '../../core/services/network_monitor.dart';
 
 class SplashMiniCore extends StatefulWidget {
   const SplashMiniCore({super.key});
@@ -14,17 +17,21 @@ class SplashMiniCore extends StatefulWidget {
 class _SplashMiniCoreState extends State<SplashMiniCore>
     with TickerProviderStateMixin {
 
-  // Animación entrada MiniCore
+  String appVersion = "";
+
+  final String _appDescription =
+      "Cotiza, paga y recibe productos del mundo en Bolivia.";
+
+  String _visibleDescription = "";
+  int _descIndex = 0;
+
   late AnimationController _miniController;
   late Animation<double> _miniFadeScale;
 
-  // Shine APPS
   late AnimationController _shineController;
   late Animation<double> _shine;
 
-  // Transición fondo híbrido
   late AnimationController _transitionController;
-  late Animation<double> _finalSlide;
   late Animation<double> _meLoFade;
   late Animation<double> _taglineFade;
   late Animation<double> _buttonsFade;
@@ -33,11 +40,12 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
   void initState() {
     super.initState();
 
-//    _initPush();  // 👈 ESTA LÍNEA
-//    WidgetsBinding.instance.addPostFrameCallback((_) {
-//      _initPush();
-//      });
-      
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NetworkMonitor.start(context);
+    });
+
+    _loadVersion();
+
     _miniController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -63,11 +71,6 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
       duration: const Duration(milliseconds: 1400),
     );
 
-    _finalSlide = CurvedAnimation(
-      parent: _transitionController,
-      curve: const Cubic(0.22, 1, 0.36, 1),
-    );
-
     _meLoFade = CurvedAnimation(
       parent: _transitionController,
       curve: const Interval(0.45, 0.8, curve: Curves.easeOut),
@@ -84,16 +87,38 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
     );
 
     _start();
+    _startDescriptionTyping();
   }
 
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
 
-// aca se borro initPush() por si acaso
+    setState(() {
+      appVersion = info.version;
+    });
+  }
 
   void _start() async {
     await _miniController.forward();
     _shineController.repeat();
     await Future.delayed(const Duration(milliseconds: 600));
     await _transitionController.forward();
+  }
+
+  void _startDescriptionTyping() async {
+
+    await Future.delayed(const Duration(milliseconds: 400));
+
+    while (_descIndex < _appDescription.length) {
+
+      await Future.delayed(const Duration(milliseconds: 28));
+
+      setState(() {
+        _visibleDescription += _appDescription[_descIndex];
+        _descIndex++;
+      });
+
+    }
   }
 
   @override
@@ -104,9 +129,6 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
     super.dispose();
   }
 
-  // ===============================
-  // MINI CORE EN ESQUINA
-  // ===============================
   Widget _buildMiniCoreCorner() {
     return Positioned(
       top: 50,
@@ -117,7 +139,6 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
           scale: Tween(begin: 0.92, end: 1.0).animate(_miniFadeScale),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
 
               Container(
@@ -173,9 +194,6 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
     );
   }
 
-  // ===============================
-  // SHINE APPS
-  // ===============================
   Widget _buildShinyApps() {
     return AnimatedBuilder(
       animation: _shine,
@@ -218,32 +236,6 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
     );
   }
 
-  // ===============================
-  // FONDO HÍBRIDO FINAL
-  // ===============================
-  Widget _buildHybridFinal() {
-    return AnimatedBuilder(
-      animation: _finalSlide,
-      builder: (context, child) {
-        return Opacity(
-          opacity: _finalSlide.value,
-          child: Transform.scale(
-            scale: 1.05 - (_finalSlide.value * 0.05),
-            child: Image.asset(
-              "assets/logos/fondo_hibrido_final.png",
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ===============================
-  // LOGO ME LO MEREZCO
-  // ===============================
   Widget _buildMeLoMerezco() {
     return AnimatedBuilder(
       animation: _meLoFade,
@@ -265,9 +257,6 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
     );
   }
 
-  // ===============================
-  // TAGLINE (TU VERSIÓN INTACTA)
-  // ===============================
   Widget _buildTagline() {
     return AnimatedBuilder(
       animation: Listenable.merge([_taglineFade, _shine]),
@@ -288,13 +277,6 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1.4,
                       color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.6),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
                     ),
                   ),
                 ],
@@ -306,188 +288,98 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
     );
   }
 
-  // ===============================
-  // BOTONES AUTH
-  // ===============================
-Widget _buildAuthButtons() {
-  return AnimatedBuilder(
-    animation: _buttonsFade,
-    builder: (context, child) {
-      return Transform.translate(
-        offset: Offset(0, 30 * (1 - _buttonsFade.value)),
-        child: Opacity(
+  Widget _buildAppDescription() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 22, left: 30, right: 30),
+      child: Text(
+        _visibleDescription,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.poppins(
+          fontSize: 7,
+          fontWeight: FontWeight.w500,
+          color: Colors.white.withOpacity(0.95),
+          height: 1.4,
+          letterSpacing: 0.4,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAuthButtons() {
+    return AnimatedBuilder(
+      animation: _buttonsFade,
+      builder: (context, child) {
+        return Opacity(
           opacity: _buttonsFade.value,
           child: Padding(
             padding: const EdgeInsets.only(top: 35),
             child: Column(
               children: [
 
-                // ===============================
-                // BOTÓN PRINCIPAL GLASS
-                // ===============================
                 SizedBox(
                   width: MediaQuery.of(context).size.width * 0.78,
                   height: 56,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(32),
-                    child: Stack(
-                      children: [
-
-                        // BLUR REAL
-                        BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                          child: Container(),
-                        ),
-
-                        // CAPA GLASS
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.18),
-                            borderRadius: BorderRadius.circular(32),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.35),
-                              width: 1.2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.12),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // CONTENIDO
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(32),
-                            onTap: () {
-                              Navigator.pushNamed(context, '/login');
-                            },
-                            child: Center(
-                              child: Text(
-                                "INICIAR SESIÓN",
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.2,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/login');
+                    },
+                    child: const Text("INICIAR SESIÓN"),
                   ),
                 ),
 
                 const SizedBox(height: 18),
 
-                // ===============================
-                // BOTÓN SECUNDARIO GLASS LIGHT
-                // ===============================
                 SizedBox(
                   width: MediaQuery.of(context).size.width * 0.78,
                   height: 56,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(32),
-                    child: Stack(
-                      children: [
-
-                        BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                          child: Container(),
-                        ),
-
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.10),
-                            borderRadius: BorderRadius.circular(32),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.25),
-                              width: 1,
-                            ),
-                          ),
-                        ),
-
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(32),
-                            onTap: () {
-                              Navigator.pushNamed(context, '/register');
-                            },
-                            child: Center(
-                              child: Text(
-                                "CREAR CUENTA",
-                                style: GoogleFonts.poppins(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.1,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/register');
+                    },
+                    child: const Text("CREAR CUENTA"),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
-// ===============================
-// LOGOS DECORATIVOS STORES
-// ===============================
-Widget _buildStoreLogos() {
-  return AnimatedBuilder(
-    animation: _buttonsFade,
-    builder: (context, child) {
-      return Opacity(
-        opacity: _buttonsFade.value * 0.85,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 26),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+  Widget _buildStoreLogos() {
+    return AnimatedBuilder(
+      animation: _buttonsFade,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _buttonsFade.value * 0.85,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 26),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
 
-              // APPLE
-              Image.asset(
-                "assets/logos/apple_mini_white.png",
-                height: 18,
-                color: Colors.white.withOpacity(0.85),
-              ),
+                Image.asset(
+                  "assets/logos/apple_mini_white.png",
+                  height: 18,
+                  color: Colors.white.withOpacity(0.85),
+                ),
 
-              const SizedBox(width: 22),
+                const SizedBox(width: 22),
 
-              // GOOGLE PLAY
-              Image.asset(
-                "assets/logos/google_play_mini_white.png",
-                height: 18,
-                color: Colors.white.withOpacity(0.85),
-              ),
-            ],
+                Image.asset(
+                  "assets/logos/google_play_mini_white.png",
+                  height: 18,
+                  color: Colors.white.withOpacity(0.85),
+                ),
+              ],
+            ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
-
-  // ===============================
-  // BUILD
-  // ===============================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -501,18 +393,52 @@ Widget _buildStoreLogos() {
             ),
           ),
 
-          Positioned.fill(child: _buildHybridFinal()),
-
           Positioned(
             left: 0,
             right: 0,
-            top: MediaQuery.of(context).size.height * 0.38,
+            top: MediaQuery.of(context).size.height * 0.28,
             child: Column(
               children: [
+
+                _buildAppDescription(),
+
                 _buildMeLoMerezco(),
+
                 _buildTagline(),
+
                 _buildAuthButtons(),
+
                 _buildStoreLogos(),
+
+              ],
+            ),
+          ),
+
+          Positioned(
+            bottom: 18,
+            left: 0,
+            right: 0,
+            child: Column(
+              children: [
+
+                Text(
+                  "MiniCore Apps - Me Lo Merezco",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.75),
+                    letterSpacing: 1.2,
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
+                Text(
+                  "Versión $appVersion",
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withOpacity(0.55),
+                  ),
+                ),
               ],
             ),
           ),
@@ -522,5 +448,4 @@ Widget _buildStoreLogos() {
       ),
     );
   }
-
 }

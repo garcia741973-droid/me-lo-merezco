@@ -634,6 +634,30 @@ static Future<void> uploadProof({
 }
 
 // =====================================================
+// ADMIN – SOLICITAR SEGUNDO PAGO
+// =====================================================
+
+static Future<void> requestFinalPayment(int orderId) async {
+  final token = await AuthService().getToken();
+  if (token == null) {
+    throw Exception('Usuario no autenticado');
+  }
+
+  final res = await http.patch(
+    Uri.parse('$baseUrl/orders/$orderId/request-final-payment'),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception('Error solicitando segundo pago (${res.statusCode})');
+  }
+}
+
+
+// =====================================================
 // ADMIN – PAYMENT QR MANAGEMENT
 // =====================================================
 
@@ -702,6 +726,27 @@ static Future<void> createQr({
 }
 
 // =====================================================
+// ADMIN – ELIMINAR QR
+// =====================================================
+
+static Future<void> deleteQr(int id) async {
+  final token = await AuthService().getToken();
+  if (token == null) throw Exception('No autenticado');
+
+  final res = await http.delete(
+    Uri.parse('$baseUrl/admin/payment-qrs/$id'),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception('Error eliminando QR');
+  }
+}
+
+// =====================================================
 // ADMIN – LISTADO PAGINADO
 // =====================================================
 
@@ -711,8 +756,10 @@ static Future<List<Order>> fetchAdminOrdersFiltered({
   int offset = 0,
   String? search,
 }) async {
+
   final token = await AuthService().getToken();
-  if (token == null) throw Exception('No autenticado');
+
+  print("TOKEN: $token");
 
   final uri = Uri.parse('$baseUrl/admin/orders').replace(
     queryParameters: {
@@ -723,6 +770,8 @@ static Future<List<Order>> fetchAdminOrdersFiltered({
     },
   );
 
+  print("REQUEST URL: $uri");
+
   final res = await http.get(
     uri,
     headers: {
@@ -731,16 +780,50 @@ static Future<List<Order>> fetchAdminOrdersFiltered({
     },
   );
 
+  print("STATUS CODE: ${res.statusCode}");
+  print("BODY: ${res.body}");
+
   if (res.statusCode != 200) {
     throw Exception('Error cargando pedidos admin');
   }
 
   final List<dynamic> data = jsonDecode(res.body);
 
-  return data
-      .map((e) => Order.fromJson(e))
-      .toList();
+  return data.map((e) => Order.fromJson(e)).toList();
 }
 
+// =====================================================
+// ADMIN – EDITAR QR
+// =====================================================
+
+static Future<void> updateQr({
+  required int id,
+  required String qrUrl,
+  required double percent,
+  required DateTime validFrom,
+  required DateTime validUntil,
+}) async {
+
+  final token = await AuthService().getToken();
+  if (token == null) throw Exception('No autenticado');
+
+  final res = await http.patch(
+    Uri.parse('$baseUrl/admin/payment-qrs/$id'),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+    body: jsonEncode({
+      'qr_image_url': qrUrl,
+      'first_payment_percent': percent,
+      'valid_from': validFrom.toUtc().toIso8601String(),
+      'valid_until': validUntil.toUtc().toIso8601String(),
+    }),
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception('Error actualizando QR');
+  }
+}
 
 }

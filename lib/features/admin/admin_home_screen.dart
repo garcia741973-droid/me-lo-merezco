@@ -11,9 +11,10 @@ import 'admin_offers_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_financial_screen.dart';
 import 'admin_qr_management_screen.dart';
+import 'admins_screen.dart';
 
 import '../communications/screens/admin_communications_screen.dart';
-import '../communications/screens/chat_screen.dart';
+import '../communications/services/communications_service.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -25,11 +26,13 @@ class AdminHomeScreen extends StatefulWidget {
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _pendingCount = 0;
   bool _loadingPending = true;
+  int _unreadCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadPendingCount();
+    _loadUnreadCount();
   }
 
   Future<void> _loadPendingCount() async {
@@ -49,6 +52,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     }
   }
 
+  // 🔔 NUEVO MÉTODO
+  Future<void> _loadUnreadCount() async {
+    try {
+      final count =
+          await CommunicationsService.getUnreadCount();
+      if (!mounted) return;
+      setState(() {
+        _unreadCount = count;
+      });
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = AuthService().currentUser;
@@ -61,7 +76,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       body: Stack(
         children: [
 
-          // 🔵 Fondo oscuro elegante
           Positioned.fill(
             child: Image.asset(
               'assets/logos/fondoGeneral1.png',
@@ -73,7 +87,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             child: Column(
               children: [
 
-                // HEADER SOBRIO
+                // HEADER
                 Padding(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 16),
@@ -91,42 +105,76 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                         ),
                       ),
 
-                      // 💬 Comunicaciones
-                    IconButton(
-                      icon: const Icon(Icons.support_agent, color: Colors.white),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                AdminCommunicationsScreen(),
-                          ),
-                        );
-                      },
-                    ),
+                      // 🔔 Comunicaciones con badge
+                      IconButton(
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const AdminCommunicationsScreen(),
+                            ),
+                          );
+
+                          _loadUnreadCount();
+                        },
+                        icon: Stack(
+                          children: [
+                            const Icon(Icons.support_agent,
+                                color: Colors.white),
+                            if (_unreadCount > 0)
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.all(4),
+                                  decoration:
+                                      const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    _unreadCount.toString(),
+                                    style:
+                                        const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight:
+                                          FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
 
                       // 🚪 Logout
-                         IconButton(
-                        icon: const Icon(Icons.logout, color: Colors.white),
+                      IconButton(
+                        icon: const Icon(Icons.logout,
+                            color: Colors.white),
                         onPressed: () async {
                           await AuthService().logout();
                           if (!mounted) return;
-                          Navigator.of(context).pushAndRemoveUntil(
+                          Navigator.of(context)
+                              .pushAndRemoveUntil(
                             MaterialPageRoute(
-                              builder: (_) => const LoginScreen(),
+                              builder: (_) =>
+                                  const LoginScreen(),
                             ),
                             (route) => false,
                           );
                         },
                       ),
                     ],
-                  )
+                  ),
                 ),
 
                 Expanded(
                   child: SingleChildScrollView(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20),
                     child: Column(
                       children: [
 
@@ -165,6 +213,23 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                             );
                           },
                         ),
+
+                          const SizedBox(height: 18),
+
+                          if (user.role == UserRole.superadmin)
+                            _tile(
+                              icon: Icons.admin_panel_settings,
+                              title: 'Administradores',
+                              subtitle: 'Gestión de administradores',
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const AdminsScreen(),
+                                  ),
+                                );
+                              },
+                            ),                        
 
                         const SizedBox(height: 18),
 
@@ -220,22 +285,25 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                             );
                           },
                         ),
-const SizedBox(height: 18),
 
-_tile(
-  icon: Icons.qr_code,
-  title: 'Gestión QR Pagos',
-  subtitle: 'Configurar porcentaje y vigencia',
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            const AdminQrManagementScreen(),
-      ),
-    );
-  },
-),
+                        const SizedBox(height: 18),
+
+                        _tile(
+                          icon: Icons.qr_code,
+                          title: 'Gestión QR Pagos',
+                          subtitle:
+                              'Configurar porcentaje y vigencia',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const AdminQrManagementScreen(),
+                              ),
+                            );
+                          },
+                        ),
+
                         const SizedBox(height: 30),
                       ],
                     ),
@@ -296,8 +364,8 @@ _tile(
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 18, vertical: 20),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.08),
           borderRadius: BorderRadius.circular(18),

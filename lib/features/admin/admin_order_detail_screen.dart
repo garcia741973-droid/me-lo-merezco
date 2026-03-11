@@ -287,7 +287,7 @@ body: SafeArea(
 
       const SizedBox(height: 16),
 
-      const Text(
+        const Text(
         'Artículos',
         style: TextStyle(
           fontSize: 18,
@@ -298,25 +298,66 @@ body: SafeArea(
       const SizedBox(height: 12),
 
       ..._items.map((item) {
+
+      debugPrint(item.toString());  
+
+        final specs = item['client_specs'] ?? {};
+
         return Card(
           margin: const EdgeInsets.only(bottom: 10),
           child: ListTile(
-            title: Text(item['product_name'] ?? ''),
+            title: Text(
+                item['product_name'] ??
+                item['offer_title'] ??
+                'Producto',
+              ),
+
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+
                 Text('Precio: \$${item['price']}'),
                 Text('Estado: ${item['status']}'),
+
+                const SizedBox(height: 4),
+
+                Text('Cantidad: ${item['quantity'] ?? 1}'),
+
+                if (specs['size'] != null)
+                  Text('Talla: ${specs['size']}'),
+
+                if (specs['color'] != null)
+                  Text('Color: ${specs['color']}'),
+
+                if (specs['notes'] != null &&
+                    specs['notes'].toString().isNotEmpty)
+                  Text('Observaciones: ${specs['notes']}'),
+
+                if (item['product_url'] != null)
+                  Text(
+                    'Producto: ${item['product_url']}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue,
+                    ),
+                  ),
+
               ],
             ),
+
             trailing: item['status'] == 'requested'
                 ? PopupMenuButton<String>(
                     onSelected: (value) async {
+
                       if (value == 'approve') {
                         await _approve(item['id']);
-                      } else if (value == 'reject') {
+                      }
+
+                      else if (value == 'reject') {
                         await _reject(item['id']);
-                      } else if (value == 'conditional') {
+                      }
+
+                      else if (value == 'conditional') {
                         showModalBottomSheet(
                           context: context,
                           isScrollControlled: true,
@@ -329,26 +370,170 @@ body: SafeArea(
                           ),
                         );
                       }
+
                     },
+
                     itemBuilder: (context) => const [
+
                       PopupMenuItem(
                         value: 'approve',
                         child: Text('Aprobar'),
                       ),
+
                       PopupMenuItem(
                         value: 'reject',
                         child: Text('Rechazar'),
                       ),
+
                       PopupMenuItem(
                         value: 'conditional',
                         child: Text('Rechazo condicional'),
                       ),
+
                     ],
                   )
                 : null,
           ),
         );
+
       }).toList(),
+
+                const SizedBox(height: 20),
+
+          const Text(
+            'Pagos recibidos',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          if (_payments.isEmpty)
+            const Text('No hay comprobantes enviados por el cliente.')
+          else
+            ..._payments.map((p) {
+
+              final amount =
+                  double.tryParse(p['amount'].toString()) ?? 0;
+
+              final status = p['status'] ?? '';
+              final proofUrl = p['proof_image_url'];
+
+              final isPending = status == 'pending_verification';
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                child: ListTile(
+                  title: Text('Pago Bs ${amount.toStringAsFixed(2)}'),
+                  subtitle: Text('Estado: $status'),
+
+                  leading: proofUrl != null
+                      ? IconButton(
+                          icon: const Icon(Icons.image),
+                          onPressed: () {
+                            _showFullImage(proofUrl);
+                          },
+                        )
+                      : null,
+
+                    trailing: isPending
+                        ? ElevatedButton(
+                            onPressed: () async {
+
+                              await OrderService.confirmPayment(_order!.id);
+
+                              await _loadData();
+
+                            },
+                            child: const Text('Confirmar pago'),
+                          )
+                      : const Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                        ),
+                ),
+              );
+
+            }).toList(),
+
+            const SizedBox(height: 20),
+
+              Builder(
+                builder: (context) {
+
+                  final finalPaymentVerified = _payments.any(
+                    (p) => p['payment_type'] == 'final' && p['status'] == 'verified',
+                  );
+
+                  if (!finalPaymentVerified) {
+                    return const SizedBox();
+                  }
+
+                  return ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                    ),
+                    onPressed: () async {
+
+                      await OrderService.markDelivered(_order!.id);
+
+                      await _loadData();
+
+                      if (!mounted) return;
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Pedido marcado como entregado'),
+                        ),
+                      );
+
+                    },
+                    child: const Text('Marcar como entregado'),
+                  );
+
+                },
+              ),
+
+            const SizedBox(height: 20),
+
+              Builder(
+                builder: (context) {
+
+                  final firstPaymentVerified = _payments.any(
+                    (p) => p['payment_type'] == 'initial' && p['status'] == 'verified',
+                  );
+
+                  final finalPaymentExists = _payments.any(
+                    (p) => p['payment_type'] == 'final',
+                  );
+
+                  if (!firstPaymentVerified || finalPaymentExists) {
+                    return const SizedBox();
+                  }
+
+                  return ElevatedButton(
+                    onPressed: () async {
+
+                      await OrderService.requestFinalPayment(_order!.id);
+
+                      await _loadData();
+
+                      if (!mounted) return;
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Solicitud de segundo pago enviada'),
+                        ),
+                      );
+
+                    },
+                    child: const Text('Solicitar segundo pago'),
+                  );
+
+                },
+              ),
 
     ],
   ),
@@ -446,10 +631,67 @@ Widget row(String label, DateTime? date) {
           ),
           const SizedBox(height: 12),
           row('Solicitado', _order!.requestedAt),
-          row('Aprobado para pago', _order!.approvedForPaymentAt),
-          row('Comprobante enviado', _order!.paymentSentAt),
-          row('Pagado', _order!.paidAt),
-          row('Entregado', _order!.deliveredAt),
+
+          row('Aprobado para 1er pago', _order!.approvedForPaymentAt),
+
+          row('Comprobante enviado 1er pago', _order!.paymentSentAt),
+
+          row(
+            '1er pago verificado',
+            _payments.any(
+              (p) => p['payment_type'] == 'initial' && p['status'] == 'verified'
+            )
+                ? DateTime.tryParse(
+                    _payments
+                        .firstWhere(
+                          (p) => p['payment_type'] == 'initial'
+                                && p['status'] == 'verified'
+                        )['verified_at']
+                        .toString(),
+                  )
+                : null,
+          ),
+
+          row(
+            'Aprobado para 2do pago',
+            _payments.any((p) => p['payment_type'] == 'final')
+                ? DateTime.tryParse(
+                    _payments
+                        .firstWhere((p) => p['payment_type'] == 'final')['created_at']
+                        .toString(),
+                  )
+                : null,
+          ),
+
+          row(
+            '2do pago enviado',
+            _payments.any((p) => p['payment_type'] == 'final')
+                ? DateTime.tryParse(
+                    _payments
+                        .firstWhere((p) => p['payment_type'] == 'final')['created_at']
+                        .toString())
+                : null,
+          ),
+
+          row(
+            '2do pago verificado',
+            _payments.any(
+              (p) => p['payment_type'] == 'final' && p['status'] == 'verified',
+            )
+                ? DateTime.tryParse(
+                    _payments
+                        .firstWhere((p) =>
+                            p['payment_type'] == 'final' &&
+                            p['status'] == 'verified')['verified_at']
+                        .toString(),
+                  )
+                : null,
+          ),
+
+          row(
+            'Entregado',
+            _order!.deliveredAt,
+          ),
         ],
       ),
     ),

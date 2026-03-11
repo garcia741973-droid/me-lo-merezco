@@ -86,7 +86,7 @@ class ClientOfferDetailScreen extends StatelessWidget {
                     Text(offer['description']),
                   const SizedBox(height: 16),
                   Text(
-                    '\$${price.toStringAsFixed(2)}',
+                    'Bs ${price.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,

@@ -10,6 +10,8 @@ import 'client_offer_detail_screen.dart';
 import '../communications/screens/chat_screen.dart';
 import '../../core/services/auth_service.dart';
 
+import '../communications/services/communications_service.dart';
+
 class ClientMainMenuScreen extends StatefulWidget {
   const ClientMainMenuScreen({super.key});
 
@@ -23,11 +25,13 @@ class _ClientMainMenuScreenState
 
   List<dynamic> _offers = [];
   bool _loadingOffers = true;
+  int _unreadCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadOffers();
+    _loadUnreadCount();
   }
 
   Future<void> _loadOffers() async {
@@ -46,6 +50,19 @@ class _ClientMainMenuScreenState
         _loadingOffers = false;
       });
     }
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final count =
+          await CommunicationsService.getUnreadCount();
+
+      if (!mounted) return;
+
+      setState(() {
+        _unreadCount = count;
+      });
+    } catch (_) {}
   }
 
   Widget _platformButton(
@@ -212,7 +229,7 @@ class _ClientMainMenuScreenState
           const SizedBox(height: 10),
 
           Text(
-            '\$${price.toStringAsFixed(2)}',
+            'Bs ${price.toStringAsFixed(2)}',
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Color(0xFF2E7D32),
@@ -242,12 +259,11 @@ Widget build(BuildContext context) {
     return Scaffold(
         floatingActionButton: FloatingActionButton(
           backgroundColor: Colors.black,
-          child: const Icon(Icons.support_agent, color: Colors.white),
-          onPressed: () {
+          onPressed: () async {
             final user = AuthService().currentUser;
             if (user == null) return;
 
-            Navigator.push(
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => ChatScreen(
@@ -256,7 +272,33 @@ Widget build(BuildContext context) {
                 ),
               ),
             );
+
+            _loadUnreadCount();
           },
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(Icons.support_agent, color: Colors.white),
+
+              if (_unreadCount > 0)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.black,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       body: Stack(
         children: [

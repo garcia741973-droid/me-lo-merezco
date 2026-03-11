@@ -34,11 +34,14 @@ class CommunicationsService {
     }
 
     if (res.statusCode != 200) {
-      throw Exception('Error cargando mensajes (${res.statusCode})');
+      throw Exception(
+          'Error cargando mensajes (${res.statusCode})');
     }
 
     final List data = jsonDecode(res.body);
-    return data.map((e) => AdminMessage.fromJson(e)).toList();
+    return data
+        .map((e) => AdminMessage.fromJson(e))
+        .toList();
   }
 
   // =========================
@@ -46,6 +49,7 @@ class CommunicationsService {
   // =========================
   static Future<void> sendMessage({
     int? receiverId,
+    List<int>? receiverIds,
     String? roleTarget,
     required String message,
   }) async {
@@ -55,57 +59,169 @@ class CommunicationsService {
       throw Exception('Usuario no autenticado');
     }
 
+    final body = <String, dynamic>{
+      if (receiverId != null) 'receiverId': receiverId,
+      if (receiverIds != null) 'receiverIds': receiverIds,
+      if (roleTarget != null) 'roleTarget': roleTarget,
+      'message': message,
+    };
+
     final res = await http.post(
       Uri.parse('$_baseUrl/communications/send'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({
-        if (receiverId != null) 'receiverId': receiverId,
-        if (roleTarget != null) 'roleTarget': roleTarget,
-        'message': message,
-      }),
+      body: jsonEncode(body),
     );
 
-    if (res.statusCode == 401 || res.statusCode == 403) {
+    if (res.statusCode == 401 ||
+        res.statusCode == 403) {
       await AuthService().logout();
       throw Exception('Sesión expirada');
     }
 
     if (res.statusCode != 200) {
-      throw Exception('Error enviando mensaje (${res.statusCode})');
+      throw Exception(
+          'Error enviando mensaje (${res.statusCode})');
     }
   }
 
-// =========================
-// ADMIN - LISTA CONVERSACIONES
-// =========================
-static Future<List<Map<String, dynamic>>> getAdminConversations() async {
-  final token = await AuthService().getToken();
-  if (token == null) {
-    throw Exception('Usuario no autenticado');
+  // =========================
+  // 🔔 CONTAR NO LEÍDOS
+  // =========================
+  static Future<int> getUnreadCount() async {
+
+    final token = await AuthService().getToken();
+    if (token == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final res = await http.get(
+      Uri.parse('$_baseUrl/communications/unread-count'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode == 401 ||
+        res.statusCode == 403) {
+      await AuthService().logout();
+      throw Exception('Sesión expirada');
+    }
+
+    if (res.statusCode != 200) {
+      return 0;
+    }
+
+    final data = jsonDecode(res.body);
+    return data['count'] ?? 0;
   }
 
-  final res = await http.get(
-    Uri.parse('$_baseUrl/communications/admin/list'),
+  // =========================
+  // 📖 MARCAR COMO LEÍDO
+  // =========================
+  static Future<void> markAsRead(int messageId) async {
+
+    final token = await AuthService().getToken();
+    if (token == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    await http.put(
+      Uri.parse('$_baseUrl/communications/read/$messageId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
+
+// =========================
+// 📖 MARCAR CONVERSACIÓN COMPLETA COMO LEÍDA
+// =========================
+static Future<void> markConversationAsRead(int otherUserId) async {
+
+  final token = await AuthService().getToken();
+  if (token == null) return;
+
+  await http.put(
+    Uri.parse(
+        '$_baseUrl/communications/read-conversation/$otherUserId'),
     headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
     },
   );
-
-  if (res.statusCode == 401 || res.statusCode == 403) {
-    await AuthService().logout();
-    throw Exception('Sesión expirada');
-  }
-
-  if (res.statusCode != 200) {
-    throw Exception('Error cargando conversaciones');
-  }
-
-  final List data = jsonDecode(res.body);
-  return data.cast<Map<String, dynamic>>();
 }
+
+  // =========================
+  // ADMIN - LISTA CONVERSACIONES
+  // =========================
+  static Future<List<Map<String, dynamic>>>
+      getAdminConversations() async {
+
+    final token = await AuthService().getToken();
+    if (token == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final res = await http.get(
+      Uri.parse('$_baseUrl/communications/admin/list'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode == 401 ||
+        res.statusCode == 403) {
+      await AuthService().logout();
+      throw Exception('Sesión expirada');
+    }
+
+    if (res.statusCode != 200) {
+      throw Exception(
+          'Error cargando conversaciones');
+    }
+
+    final List data = jsonDecode(res.body);
+    return data.cast<Map<String, dynamic>>();
+  }
+
+  // =========================
+  // ADMIN - USUARIOS POR ROL
+  // =========================
+  static Future<List<dynamic>>
+      getUsersByRole(String role) async {
+
+    final token = await AuthService().getToken();
+    if (token == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final res = await http.get(
+      Uri.parse(
+          '$_baseUrl/communications/admin/users/$role'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode == 401 ||
+        res.statusCode == 403) {
+      await AuthService().logout();
+      throw Exception('Sesión expirada');
+    }
+
+    if (res.statusCode != 200) {
+      throw Exception('Error cargando usuarios');
+    }
+
+    return jsonDecode(res.body);
+  }
+
 
 }

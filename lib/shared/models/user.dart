@@ -1,7 +1,9 @@
 enum UserRole {
   client,
   seller,
+  operador,
   admin,
+  superadmin,
 }
 
 class User {
@@ -33,10 +35,18 @@ class User {
 
   static UserRole _parseRole(String? role) {
     switch (role) {
-      case 'seller':
-        return UserRole.seller;
+      case 'superadmin':
+        return UserRole.superadmin;
+
       case 'admin':
         return UserRole.admin;
+
+      case 'operador':
+        return UserRole.operador;
+
+      case 'seller':
+        return UserRole.seller;
+
       default:
         return UserRole.client;
     }

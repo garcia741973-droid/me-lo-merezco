@@ -117,22 +117,42 @@ class AdminUserService {
 // EDITAR USUARIO
 // PATCH /admin/users/:id
 // ================================
-static Future<void> updateUser({
-  required int userId,
-  int? sellerId,
-  double? commissionRate,
-}) async {
+  static Future<void> updateUser({
+    required int userId,
+    int? sellerId,
+    double? commissionRate,
+    String? phone,
+    String? documentId,
+    String? city,
+    String? address,
+  }) async {
   final headers = await _authHeaders();
 
-  final Map<String, dynamic> body = {};
+    final Map<String, dynamic> body = {};
 
-  if (sellerId != null) {
-    body['seller_id'] = sellerId;
-  }
+    if (sellerId != null) {
+      body['seller_id'] = sellerId;
+    }
 
-  if (commissionRate != null) {
-    body['commission_rate'] = commissionRate;
-  }
+    if (commissionRate != null) {
+      body['commission_rate'] = commissionRate;
+    }
+
+    if (phone != null) {
+      body['phone'] = phone;
+    }
+
+    if (documentId != null) {
+      body['document_id'] = documentId;
+    }
+
+    if (city != null) {
+      body['city'] = city;
+    }
+
+    if (address != null) {
+      body['address'] = address;
+    }
 
   if (body.isEmpty) {
     throw Exception('No hay datos para actualizar');
@@ -153,5 +173,29 @@ static Future<void> updateUser({
   }
 }
 
+  // ================================
+  // ELIMINAR USUARIO
+  // DELETE /admin/users/:id
+  // ================================
+  static Future<void> deleteUser({
+    required int userId,
+  }) async {
+
+    final headers = await _authHeaders();
+
+    final res = await http.delete(
+      Uri.parse('$baseUrl/admin/users/$userId'),
+      headers: headers,
+    );
+
+    if (res.statusCode == 401 || res.statusCode == 403) {
+      throw Exception('Sesión expirada');
+    }
+
+    if (res.statusCode != 200) {
+      throw Exception('Error eliminando usuario');
+    }
+
+  }
 
 }

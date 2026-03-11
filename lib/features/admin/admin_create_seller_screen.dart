@@ -16,7 +16,11 @@ class _AdminCreateSellerScreenState extends State<AdminCreateSellerScreen> {
   final nameCtrl = TextEditingController();
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
-
+  final phoneCtrl = TextEditingController();
+  final cityCtrl = TextEditingController();
+  final documentCtrl = TextEditingController();
+  final addressCtrl = TextEditingController();
+  final commissionCtrl = TextEditingController();
   bool isLoading = false;
 
   void _showMessage(String msg) {
@@ -52,6 +56,11 @@ class _AdminCreateSellerScreenState extends State<AdminCreateSellerScreen> {
           'name': name,
           'email': email,
           'password': pass,
+          'phone': phoneCtrl.text.trim(),
+          'city': cityCtrl.text.trim(),
+          'document_id': documentCtrl.text.trim(),
+          'address': addressCtrl.text.trim(),
+          'commission_rate': double.tryParse(commissionCtrl.text) ?? 0,
         }),
       );
 
@@ -93,6 +102,42 @@ class _AdminCreateSellerScreenState extends State<AdminCreateSellerScreen> {
               obscureText: true,
               decoration: const InputDecoration(labelText: 'Contraseña'),
             ),
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: phoneCtrl,
+              decoration: const InputDecoration(labelText: 'Teléfono'),
+            ),
+
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: documentCtrl,
+              decoration: const InputDecoration(labelText: 'Documento'),
+            ),
+
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: cityCtrl,
+              decoration: const InputDecoration(labelText: 'Ciudad'),
+            ),
+
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: addressCtrl,
+              decoration: const InputDecoration(labelText: 'Dirección'),
+            ),
+
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: commissionCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Comisión (%)'),
+            ),
+
             const SizedBox(height: 24),
             isLoading
                 ? const CircularProgressIndicator()

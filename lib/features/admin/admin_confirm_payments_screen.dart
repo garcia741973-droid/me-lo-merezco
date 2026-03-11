@@ -22,7 +22,8 @@ class _AdminConfirmPaymentsScreenState
     final user = AuthService().currentUser;
 
     // 🔐 Protección por rol
-    if (user == null || user.role != UserRole.admin) {
+    if (user == null ||
+        (user.role != UserRole.admin &&)) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Acceso denegado'),

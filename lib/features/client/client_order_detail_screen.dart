@@ -151,7 +151,9 @@ class _ClientOrderDetailScreenState extends State<ClientOrderDetailScreen> {
     }
 
     final user = AuthService().currentUser;
-    final isAdmin = user?.role == UserRole.admin;
+    final isAdmin = user?.role == UserRole.admin ||
+                    user?.role == UserRole.superadmin;
+
     final isClient = user?.role == UserRole.client;
 
 print("REQUESTING STATE: $_requesting");
@@ -234,7 +236,7 @@ print("IS CLIENT: $isClient");
                                       ),
                                       const SizedBox(height: 6),
                                       Text(
-                                        'Precio: \$${item['price']}',
+                                        'Precio: Bs ${item['price']}',
                                         style: const TextStyle(
                                           color:
                                               Colors.black87,
@@ -696,7 +698,7 @@ Future<Map<String, dynamic>?> _showDynamicForm(
             const Divider(),
             _row(
               'Total',
-              '\$${_order!.total.toStringAsFixed(2)}',
+              'Bs ${_order!.total.toStringAsFixed(2)}',
             ),
             _row(
               'Estado',

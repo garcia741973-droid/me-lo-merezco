@@ -83,9 +83,30 @@ class _AdminFinancialScreenState
       final ratesList =
           jsonDecode(ratesRes.body);
 
-      for (var r in ratesList) {
-        _rates[r['currency']] = r['rate_to_bob'];
-      }
+        _rates.clear();
+
+        print("RATES BACKEND:");
+        print(ratesList); 
+
+        for (var r in ratesList) {
+
+          if (r['currency'] == 'BOB' && r['source'] == 'binance_market') {
+            _rates['BOB_MARKET'] = r['rate_to_bob'];
+          }
+
+          if (r['currency'] == 'BOB' && r['source'] == 'binance_markup') {
+            _rates['BOB_APP'] = r['rate_to_bob'];
+          }
+
+          if (r['currency'] == 'USD') {
+            _rates['USD'] = r['rate_to_bob'];
+          }
+
+          if (r['currency'] == 'CLP') {
+            _rates['CLP'] = r['rate_to_bob'];
+          }
+
+        }
 
       setState(() => _loading = false);
 
@@ -183,7 +204,8 @@ class _AdminFinancialScreenState
 
               const SizedBox(height: 10),
 
-              Text('USDT → BOB: ${_rates['BOB'] ?? '-'}'),
+              Text('USDT → BOB mercado: ${_rates['BOB_MARKET'] ?? '-'}'),
+              Text('USDT → BOB app: ${_rates['BOB_APP'] ?? '-'}'),
               Text('USDT → USD: ${_rates['USD'] ?? '-'}'),
               Text('USDT → CLP: ${_rates['CLP'] ?? '-'}'),
 
