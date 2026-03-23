@@ -25,6 +25,9 @@ class _AdminCommunicationsScreenState
 
 void _showBroadcastDialog() {
   String? selectedRole;
+
+  String? selectedInterest;
+
   List<dynamic> users = [];
   List<int> selectedIds = [];
   final TextEditingController messageController =
@@ -52,109 +55,131 @@ void _showBroadcastDialog() {
             return name.contains(searchController.text.toLowerCase());
           }).toList();
 
-          return AlertDialog(
-            title: const Text("Enviar mensaje específico"),
-            content: SizedBox(
-              width: 400,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+            return AlertDialog(
+              title: const Text("Enviar mensaje específico"),
 
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: "Rol",
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: "client",
-                        child: Text("Clientes"),
+              content: SizedBox(
+                width: 400,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+
+                      DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: "Rol",
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: "client",
+                            child: Text("Clientes"),
+                          ),
+                          DropdownMenuItem(
+                            value: "seller",
+                            child: Text("Vendedores"),
+                          ),
+                        ],
+                        onChanged: (value) async {
+                          selectedRole = value;
+                          await loadUsers();
+                        },
                       ),
-                      DropdownMenuItem(
-                        value: "seller",
-                        child: Text("Vendedores"),
+
+                      DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: "Interés (opcional)",
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: "Tecnologia", child: Text("Tecnologia")),
+                          DropdownMenuItem(value: "Deportes", child: Text("Deportes")),
+                          DropdownMenuItem(value: "Cuidado personal", child: Text("Cuidado personal")),
+                          DropdownMenuItem(value: "Ganaderia", child: Text("Ganaderia")),
+                          DropdownMenuItem(value: "Ocio", child: Text("Ocio")),
+                          DropdownMenuItem(value: "Electrodomesticos", child: Text("Electrodomesticos")),
+                        ],
+                        onChanged: (value) {
+                          selectedInterest = value;
+                        },
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      TextField(
+                        controller: searchController,
+                        decoration: const InputDecoration(
+                          hintText: "Buscar usuario...",
+                        ),
+                        onChanged: (_) {
+                          setModalState(() {});
+                        },
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      SizedBox(
+                        height: 200,
+                        child: ListView(
+                          shrinkWrap: true,
+                          children: filteredUsers.map((user) {
+                            final id = user['id'];
+                            final selected = selectedIds.contains(id);
+
+                            return CheckboxListTile(
+                              value: selected,
+                              title: Text(user['name']),
+                              onChanged: (val) {
+                                setModalState(() {
+                                  if (val == true) {
+                                    selectedIds.add(id);
+                                  } else {
+                                    selectedIds.remove(id);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      TextField(
+                        controller: messageController,
+                        decoration: const InputDecoration(
+                          labelText: "Mensaje",
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 3,
                       ),
                     ],
-                    onChanged: (value) async {
-                      selectedRole = value;
-                      await loadUsers();
-                    },
                   ),
-
-                  const SizedBox(height: 10),
-
-                  TextField(
-                    controller: searchController,
-                    decoration: const InputDecoration(
-                      hintText: "Buscar usuario...",
-                    ),
-                    onChanged: (_) {
-                      setModalState(() {});
-                    },
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  SizedBox(
-                    height: 200,
-                    child: ListView(
-                      children: filteredUsers.map((user) {
-                        final id = user['id'];
-                        final selected = selectedIds.contains(id);
-
-                        return CheckboxListTile(
-                          value: selected,
-                          title: Text(user['name']),
-                          onChanged: (val) {
-                            setModalState(() {
-                              if (val == true) {
-                                selectedIds.add(id);
-                              } else {
-                                selectedIds.remove(id);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  TextField(
-                    controller: messageController,
-                    decoration: const InputDecoration(
-                      labelText: "Mensaje",
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 3,
-                  ),
-                ],
+                ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancelar"),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (selectedIds.isEmpty ||
-                      messageController.text.trim().isEmpty) {
-                    return;
-                  }
 
-                  await CommunicationsService.sendMessage(
-                    receiverIds: selectedIds,
-                    message: messageController.text.trim(),
-                  );
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancelar"),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (messageController.text.trim().isEmpty) return;
 
-                  Navigator.pop(context);
-                  _load();
-                },
-                child: const Text("Enviar"),
-              ),
-            ],
-          );
+                    if (selectedIds.isEmpty && selectedInterest == null) return;
+
+                    await CommunicationsService.sendMessage(
+                      receiverIds: selectedIds.isNotEmpty ? selectedIds : null,
+                      interestTarget: selectedInterest,
+                      message: messageController.text.trim(),
+                    );
+
+                    Navigator.pop(context);
+                    _load();
+                  },
+                  child: const Text("Enviar"),
+                ),
+              ],
+            );
         },
       );
     },

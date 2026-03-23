@@ -180,11 +180,12 @@ print("IS CLIENT: $isClient");
             color: Colors.white.withOpacity(0.9),
           ),
           child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+child: Padding(
+  padding: const EdgeInsets.all(20),
+  child: SingleChildScrollView(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
                   _headerCard(),
                   const SizedBox(height: 24),
 
@@ -198,127 +199,53 @@ print("IS CLIENT: $isClient");
 
                   const SizedBox(height: 12),
 
-                      Flexible(
-                        fit: FlexFit.loose,
-                        child: _items.isEmpty
-                        ? const Center(
-                            child: Text('No hay ítems en este pedido'),
-                          )
-                        : ListView.builder(
-                            itemCount: _items.length,
-                            itemBuilder: (context, index) {
-                              final item = _items[index];
+                        _items.isEmpty
+                ? const Center(
+                    child: Text('No hay ítems en este pedido'),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _items.length,
+                    itemBuilder: (context, index) {
+                      final item = _items[index];
 
-                              return Card(
-                                elevation: 3,
-                                margin: const EdgeInsets.only(bottom: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(16),
+                      return Card(
+                        elevation: 3,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item['product_name'] ?? '',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
                                 ),
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.all(14),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item['product_name'] ?? '',
-                                        maxLines: 2,
-                                        overflow:
-                                            TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontWeight:
-                                              FontWeight.bold,
-                                          fontSize: 15,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        'Precio: Bs ${item['price']}',
-                                        style: const TextStyle(
-                                          color:
-                                              Colors.black87,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Align(
-                                        alignment:
-                                            Alignment.centerRight,
-                                        child: item['status'] ==
-                                                    'pending' &&
-                                                isAdmin
-                                            ? Row(
-                                                mainAxisSize:
-                                                    MainAxisSize
-                                                        .min,
-                                                children: [
-                                                  IconButton(
-                                                    icon:
-                                                        const Icon(
-                                                      Icons
-                                                          .check,
-                                                      color:
-                                                          Colors
-                                                              .green,
-                                                    ),
-                                                    onPressed:
-                                                        () async {
-                                                      await OrderService
-                                                          .approveItem(
-                                                              item[
-                                                                  'id']);
-                                                      await _loadData();
-                                                    },
-                                                  ),
-                                                  IconButton(
-                                                    icon:
-                                                        const Icon(
-                                                      Icons
-                                                          .close,
-                                                      color:
-                                                          Colors
-                                                              .red,
-                                                    ),
-                                                    onPressed:
-                                                        () async {
-                                                      await OrderService
-                                                          .rejectItem(
-                                                              item[
-                                                                  'id']);
-                                                      await _loadData();
-                                                    },
-                                                  ),
-                                                ],
-                                              )
+                              ),
 
-                                            : Text(
-                                                _formatItemStatus(
-                                                    item[
-                                                        'status']),
-                                                style:
-                                                    TextStyle(
-                                                  fontWeight:
-                                                      FontWeight
-                                                          .bold,
-                                                  color:
-                                                      _itemStatusColor(
-                                                          item[
-                                                              'status']),
-                                                ),
-                                              ),
-                                      ),
+                              const SizedBox(height: 6),
 
-                                  const SizedBox(height: 8),
-                                  ..._buildItemMessages(item),
+                              Text(
+                                'Precio: Bs ${item['price']}',
+                                style: const TextStyle(color: Colors.black87),
+                              ),
 
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
+                              const SizedBox(height: 8),
+
+                              ..._buildItemMessages(item),
+                            ],
                           ),
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 16),
@@ -327,31 +254,31 @@ print("IS CLIENT: $isClient");
 
                   const SizedBox(height: 12),
 
-// ================= BOTÓN PAGAR =================
+    // ================= BOTÓN PAGAR =================
 
-if (isClient &&
-    (_order!.status == OrderStatus.approvedForPayment ||
-     _order!.status == OrderStatus.paymentSent))
-  SizedBox(
-    width: double.infinity,
-    child: ElevatedButton(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => QrPaymentScreen(
-              orderId: _order!.id,
-            ),
+    if (isClient &&
+        (_order!.status == OrderStatus.approvedForPayment ||
+        _order!.status == OrderStatus.paymentSent))
+      SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => QrPaymentScreen(
+                  orderId: _order!.id,
+                ),
+              ),
+            );
+          },
+          child: Text(
+            _order!.status == OrderStatus.approvedForPayment
+                ? 'Pagar anticipo'
+                : 'Pagar saldo',
           ),
-        );
-      },
-      child: Text(
-        _order!.status == OrderStatus.approvedForPayment
-            ? 'Pagar anticipo'
-            : 'Pagar saldo',
+        ),
       ),
-    ),
-  ),
 
 const SizedBox(height: 12),
 
@@ -398,8 +325,9 @@ const SizedBox(height: 12),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
 List<Widget> _buildItemMessages(dynamic item) {
   final itemMessages =

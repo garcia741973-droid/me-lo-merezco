@@ -21,7 +21,24 @@ class ClientHomeScreen extends StatefulWidget {
 }
 
 class _ClientHomeScreenState extends State<ClientHomeScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   int _bottomIndex = 0;
+
+  // ✅ NUEVO (NO rompe nada)
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // ✅ CACHE DE PANTALLAS (soluciona cierre del drawer)
+    _pages = const [
+      ClientMainMenuScreen(),
+      ClientOrdersScreen(),
+      ClientOffersScreen(),
+    ];
+  }
 
   Future<void> _logout() async {
     await AuthService().logout();
@@ -33,75 +50,67 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     );
   }
 
-      void _confirmDeleteAccount() {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text("Eliminar cuenta"),
-            content: const Text(
-              "¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer."
-            ),
-            actions: [
-
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text("Cancelar"),
-              ),
-
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _deleteAccount();
-                },
-                child: const Text(
-                  "Eliminar",
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-
-            ],
+  void _confirmDeleteAccount() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Eliminar cuenta"),
+        content: const Text(
+          "¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text("Cancelar"),
           ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteAccount();
+            },
+            child: const Text(
+              "Eliminar",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    final user = AuthService().currentUser;
+    if (user == null) return;
+
+    try {
+      final token = await AuthService().getToken();
+
+      final response = await http.delete(
+        Uri.parse(
+          "https://me-lo-merezco-backend.onrender.com/auth/delete-account",
+        ),
+        headers: {
+          "Authorization": "Bearer $token",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        await AuthService().logout();
+
+        if (!mounted) return;
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const AuthGate()),
+          (_) => false,
         );
-      }  
-
-        Future<void> _deleteAccount() async {
-
-          final user = AuthService().currentUser;
-          if (user == null) return;
-
-          try {
-
-            final token = await AuthService().getToken();
-
-            final response = await http.delete(
-              Uri.parse(
-                "https://me-lo-merezco-backend.onrender.com/auth/delete-account",
-              ),
-              headers: {
-                "Authorization": "Bearer $token",
-              },
-            );
-
-            if (response.statusCode == 200) {
-
-              await AuthService().logout();
-
-              if (!mounted) return;
-
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const AuthGate()),
-                (_) => false,
-              );
-
-            }
-
-          } catch (e) {
-            print("Error eliminando cuenta $e");
-          }
-        }
+      }
+    } catch (e) {
+      print("Error eliminando cuenta $e");
+    }
+  }
 
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
@@ -109,8 +118,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       throw Exception('No se pudo abrir $url');
     }
-  }  
+  }
 
+  // 🔹 NO TOCADO (lo dejamos por seguridad)
   Widget _currentView() {
     switch (_bottomIndex) {
       case 1:
@@ -122,13 +132,122 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     }
   }
 
+  void _closeDrawer(BuildContext drawerContext) {
+    Navigator.pop(drawerContext);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+// SOLO TE PONGO LA PARTE DEL DRAWER CORREGIDA
+
+        endDrawer: Drawer(
+          child: Builder(
+            builder: (drawerContext) {
+              return SafeArea(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    const DrawerHeader(
+                      child: Text(
+                        'Menú',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
+                    ListTile(
+                      title: const Text('Menú General'),
+                      onTap: () {
+                        Navigator.pop(drawerContext);
+                        setState(() => _bottomIndex = 0);
+                      },
+                    ),
+
+                    ListTile(
+                      title: const Text('Ofertas'),
+                      onTap: () {
+                        Navigator.pop(drawerContext);
+                        setState(() => _bottomIndex = 2);
+                      },
+                    ),
+
+                    ListTile(
+                      title: const Text('Carrito / Pedidos'),
+                      onTap: () {
+                        Navigator.pop(drawerContext);
+                        setState(() => _bottomIndex = 1);
+                      },
+                    ),
+
+                    ListTile(
+                      title: const Text('Ayuda'),
+                      onTap: () {
+                        Navigator.pop(drawerContext);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ClientHelpScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const Divider(),
+
+                    ListTile(
+                      title: const Text('Política de privacidad'),
+                      onTap: () {
+                        Navigator.pop(drawerContext);
+                        _openUrl("https://minicore.estuvia.org/melomerezco/privacy.html");
+                      },
+                    ),
+
+                    ListTile(
+                      title: const Text('Términos de uso'),
+                      onTap: () {
+                        Navigator.pop(drawerContext);
+                        _openUrl("https://minicore.estuvia.org/melomerezco/terms.html");
+                      },
+                    ),
+
+                    ListTile(
+                      title: const Text('Soporte'),
+                      onTap: () {
+                        Navigator.pop(drawerContext);
+                        _openUrl("https://minicore.estuvia.org/melomerezco/support.html");
+                      },
+                    ),
+
+                    const Divider(),
+
+                    ListTile(
+                      title: const Text('Eliminar cuenta'),
+                      onTap: () {
+                        Navigator.pop(drawerContext);
+                        _confirmDeleteAccount();
+                      },
+                    ),
+
+                    ListTile(
+                      title: const Text('Salir'),
+                      onTap: () {
+                        Navigator.pop(drawerContext);
+                        _logout();
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
       appBar: AppBar(
         title: const Text('Me lo merezco'),
         actions: [
-          // 🔐 Cambiar contraseña
           IconButton(
             icon: const Icon(Icons.lock_outline),
             onPressed: () {
@@ -141,7 +260,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             },
           ),
 
-          // 💬 Contactar administrador
           IconButton(
             icon: const Icon(Icons.support_agent),
             onPressed: () {
@@ -152,7 +270,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => ChatScreen(
-                    otherUserId: 1, // admin único
+                    otherUserId: 1,
                     currentUserId: user.id,
                   ),
                 ),
@@ -160,116 +278,27 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             },
           ),
 
-          // ☰ Menú
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-
-                case 'menu':
-                  setState(() => _bottomIndex = 0);
-                  break;
-
-                case 'offers':
-                  setState(() => _bottomIndex = 2);
-                  break;
-
-                case 'cart':
-                case 'orders':
-                  setState(() => _bottomIndex = 1);
-                  break;
-
-                case 'privacy':
-                  _openUrl("https://minicore.estuvia.org/melomerezco/privacy.html");
-                  break;
-
-                case 'terms':
-                  _openUrl("https://minicore.estuvia.org/melomerezco/terms.html");
-                  break;
-
-                case 'support':
-                  _openUrl("https://minicore.estuvia.org/melomerezco/support.html");
-                  break;
-
-                case 'delete_account':
-                  _confirmDeleteAccount();
-                  break;
-
-                case 'help':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ClientHelpScreen(),
-                    ),
-                  );
-                  break;
-
-                case 'logout':
-                  _logout();
-                  break;
-
-              }
+          Builder(
+            builder: (context) {
+              return IconButton(
+                icon: const Icon(Icons.more_vert),
+                onPressed: () {
+                  Scaffold.of(context).openEndDrawer();
+                },
+              );
             },
-              itemBuilder: (_) => const [
-
-                PopupMenuItem(
-                  value: 'menu',
-                  child: Text('Menú General'),
-                ),
-
-                PopupMenuItem(
-                  value: 'offers',
-                  child: Text('Ofertas'),
-                ),
-
-                PopupMenuItem(
-                  value: 'cart',
-                  child: Text('Carrito'),
-                ),
-
-                PopupMenuItem(
-                  value: 'orders',
-                  child: Text('Pedidos'),
-                ),
-
-                PopupMenuItem(
-                  value: 'help',
-                  child: Text('Ayuda')
-                ),
-
-                PopupMenuDivider(),
-
-                PopupMenuItem(
-                  value: 'privacy',
-                  child: Text('Política de privacidad'),
-                ),
-
-                PopupMenuItem(
-                  value: 'terms',
-                  child: Text('Términos de uso'),
-                ),
-
-                PopupMenuItem(
-                  value: 'support',
-                  child: Text('Soporte'),
-                ),
-
-                PopupMenuDivider(),
-
-                PopupMenuItem(
-                  value: 'delete_account',
-                  child: Text('Eliminar cuenta'),
-                ),
-
-                PopupMenuItem(
-                  value: 'logout',
-                  child: Text('Salir'),
-                ),
-
-              ],
           ),
         ],
       ),
-      body: SafeArea(child: _currentView()),
+
+      // ✅ SOLO CAMBIO REAL
+      body: SafeArea(
+        child: IndexedStack(
+          index: _bottomIndex,
+          children: _pages,
+        ),
+      ),
+
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _bottomIndex,
         onTap: (i) => setState(() => _bottomIndex = i),

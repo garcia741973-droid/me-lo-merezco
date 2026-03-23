@@ -135,6 +135,77 @@ if (widget.offer != null) {
     }
   }
 
+    Future<void> _showCreateCategoryDialog() async {
+      final controller = TextEditingController();
+
+      await showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Nueva categoría'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'Nombre de la categoría',
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              child: const Text('Crear'),
+              onPressed: () async {
+
+                final name = controller.text.trim();
+
+                if (name.isEmpty) return;
+
+                try {
+
+                  final token = await AuthService().getToken();
+
+                  final res = await http.post(
+                    Uri.parse(
+                      'https://me-lo-merezco-backend.onrender.com/categories/admin',
+                    ),
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': 'Bearer $token',
+                    },
+                    body: jsonEncode({
+                      'name': name,
+                    }),
+                  );
+
+                  if (res.statusCode == 201) {
+
+                    final newCategory = jsonDecode(res.body);
+
+                    Navigator.pop(context);
+
+                    await _loadCategories();
+
+                    setState(() {
+                      selectedCategoryId = newCategory['id'];
+                    });
+
+                  } else {
+                    _showMessage('Error creando categoría');
+                  }
+
+                } catch (e) {
+                  _showMessage('Error creando categoría');
+                }
+
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+
   // =========================
   // LOAD EXCHANGE RATES
   // =========================
@@ -680,25 +751,45 @@ print("==============================");
               const SizedBox(height: 20),
 
               // ---------- CATEGORÍA ----------
-              loadingCategories
-                  ? const Center(child: CircularProgressIndicator())
-                  : DropdownButtonFormField<int>(
-                      value: selectedCategoryId,
-                      decoration: const InputDecoration(
-                        labelText: 'Categoría *',
+              if (loadingCategories)
+                const Center(child: CircularProgressIndicator())
+              else
+                DropdownButtonFormField<dynamic>(
+                  value: selectedCategoryId,
+                  decoration: const InputDecoration(
+                    labelText: 'Categoría *',
+                  ),
+                  items: [
+                    ...categories.map((c) {
+                      return DropdownMenuItem(
+                        value: c['id'],
+                        child: Text(c['name']),
+                      );
+                    }).toList(),
+
+                    const DropdownMenuItem(
+                      value: 'new',
+                      child: Text(
+                        '+ Crear nueva categoría',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
                       ),
-                      items: categories.map((c) {
-                        return DropdownMenuItem<int>(
-                          value: c['id'],
-                          child: Text(c['name']),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedCategoryId = value;
-                        });
-                      },
                     ),
+                  ],
+                  onChanged: (value) async {
+
+                    if (value == 'new') {
+                      await _showCreateCategoryDialog();
+                      return;
+                    }
+
+                    setState(() {
+                      selectedCategoryId = value;
+                    });
+                  },
+                ),
 
               const SizedBox(height: 20),
 

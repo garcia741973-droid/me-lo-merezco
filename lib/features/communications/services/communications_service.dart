@@ -47,12 +47,13 @@ class CommunicationsService {
   // =========================
   // ENVIAR MENSAJE
   // =========================
-  static Future<void> sendMessage({
-    int? receiverId,
-    List<int>? receiverIds,
-    String? roleTarget,
-    required String message,
-  }) async {
+    static Future<void> sendMessage({
+      int? receiverId,
+      List<int>? receiverIds,
+      String? roleTarget,
+      String? interestTarget,
+      required String message,
+    }) async {
 
     final token = await AuthService().getToken();
     if (token == null) {
@@ -63,6 +64,7 @@ class CommunicationsService {
       if (receiverId != null) 'receiverId': receiverId,
       if (receiverIds != null) 'receiverIds': receiverIds,
       if (roleTarget != null) 'roleTarget': roleTarget,
+      if (interestTarget != null) 'interestTarget': interestTarget,
       'message': message,
     };
 

@@ -37,6 +37,29 @@ class OrderService {
         .toList();
   }
 
+// MODIFICACION PARA BORRAR ITEMS DE FORMA SOFT
+
+    static Future<void> archiveOrder(int orderId) async {
+
+      final token = await AuthService().getToken();
+      if (token == null) {
+        throw Exception('Usuario no autenticado');
+      }
+
+      final response = await http.patch(
+        Uri.parse('$baseUrl/orders/$orderId/archive'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Error archivando pedido (${response.statusCode})');
+      }
+
+    }
+
   static Future<void> addQuote({
     required String productName,
     String? productUrl,
@@ -722,6 +745,7 @@ static Future<void> createQr({
 
   if (res.statusCode != 201) {
     throw Exception('Error creando QR');
+
   }
 }
 

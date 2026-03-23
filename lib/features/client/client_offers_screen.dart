@@ -67,8 +67,19 @@ class _ClientOffersScreenState extends State<ClientOffersScreen> {
   // =========================
   // ADD TO CART
   // =========================
-  Future<void> _addToCart(int offerId) async {
-    final token = await AuthService().getToken();
+Future<void> _addToCart(int offerId) async {
+
+  // 🔒 BLOQUEO VISITANTE
+    if (AuthService().currentUser == null) {
+      _showAuthRequiredDialog();
+      return;
+    }
+
+        final token = await AuthService().getToken();
+    if (token == null) {
+      _showAuthRequiredDialog();
+      return;
+    }
 
     final res = await http.post(
       Uri.parse('https://me-lo-merezco-backend.onrender.com/orders/add-offer'),
@@ -81,11 +92,43 @@ class _ClientOffersScreenState extends State<ClientOffersScreen> {
 
     if (!mounted) return;
 
+
+
+    print("ADD QUOTE STATUS: ${res.statusCode}");
+    print("ADD QUOTE BODY: ${res.body}");
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          res.statusCode == 200 ? 'Agregado al carrito' : 'Error al agregar',
+          res.statusCode == 200
+              ? 'Agregado al carrito'
+              : 'Error: ${res.body}',
         ),
+      ),
+    );
+  }
+
+    void _showAuthRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Acceso requerido"),
+        content: const Text(
+          "Lo sentimos esta función es solo permitido para usuarios registrados, por favor inicia sesión o registrate. Gracias",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancelar"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/login');
+            },
+            child: const Text("Iniciar sesión"),
+          ),
+        ],
       ),
     );
   }
@@ -178,12 +221,7 @@ Widget _buildCategoriesGrid(List<String> categories) {
   // =========================
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ofertas'),
-        centerTitle: true,
-      ),
-      body: Stack(
+      return Stack(
         children: [
           Positioned.fill(
             child: Image.asset(
@@ -201,8 +239,10 @@ Widget _buildCategoriesGrid(List<String> categories) {
               }
 
               if (snapshot.hasError) {
-                return const Center(
-                  child: Text('Error cargando ofertas'),
+                print("ERROR OFERTAS: ${snapshot.error}");
+
+                return Center(
+                  child: Text('Error: ${snapshot.error}'),
                 );
               }
 
@@ -364,7 +404,6 @@ else
             },
           ),
         ],
-      ),
-    );
+      );
   }
 }

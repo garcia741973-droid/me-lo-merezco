@@ -7,6 +7,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/services/network_monitor.dart';
 
+//import '../client/client_main_menu_screen.dart';
+import '../client/client_home_screen.dart';
+
 class SplashMiniCore extends StatefulWidget {
   const SplashMiniCore({super.key});
 
@@ -246,9 +249,15 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
             opacity: _meLoFade.value,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Image.asset(
-                "assets/logos/logo_me_lo_merezco_transparente.png",
-                fit: BoxFit.fitWidth,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: FractionallySizedBox(
+                  widthFactor: 0.7, // 30% más pequeño
+                  child: Image.asset(
+                    "assets/logos/logo_me_lo_merezco_transparente.png",
+                    fit: BoxFit.fitWidth,
+                  ),
+                ),
               ),
             ),
           ),
@@ -315,6 +324,31 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
             padding: const EdgeInsets.only(top: 35),
             child: Column(
               children: [
+
+                // 🔹 INVITADO (discreto arriba)
+                SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.78,
+                  height: 40,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ClientHomeScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "CONTINUAR COMO INVITADO",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
 
                 SizedBox(
                   width: MediaQuery.of(context).size.width * 0.78,

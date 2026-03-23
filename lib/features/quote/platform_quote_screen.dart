@@ -222,41 +222,80 @@ if (platform == 'temu') {
 
 
   // 🔹 Agregar al carrito
-  Future<void> _addToCart() async {
-    if (_result == null) return;
+    Future<void> _addToCart() async {
 
-    final token = await AuthService().getToken();
+      // 🔒 BLOQUEO VISITANTE
+      if (AuthService().currentUser == null) {
+        _showAuthRequiredDialog();
+        return;
+      }
 
-    final res = await http.post(
-      Uri.parse('$baseUrl/orders/add-quote'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        "product_name": _result!['product_name'],
-        "product_url": _urlController.text,
-        "platform": widget.platform.toLowerCase(),
-        "size": _selectedSize,
-        "base_price_original": _result!['base_price_original'],
-        "currency_original": _result!['currency_original'],
-        "base_price_bob": _result!['base_price_bob'],
-        "import_percent": _result!['import_percent'],
-        "margin_percent": _result!['margin_percent'],
-        "total_final_bob": _result!['total_final_bob'],
-      }),
-    );
+      if (_result == null) return;
 
-    if (res.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Agregado al carrito')),
+      final token = await AuthService().getToken();
+
+      if (token == null) {
+        _showAuthRequiredDialog();
+        return;
+      }
+
+      final res = await http.post(
+        Uri.parse('$baseUrl/orders/add-quote'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          "product_name": _result!['product_name'],
+          "product_url": _urlController.text,
+          "platform": widget.platform.toLowerCase(),
+          "size": _selectedSize,
+          "base_price_original": _result!['base_price_original'],
+          "currency_original": _result!['currency_original'],
+          "base_price_bob": _result!['base_price_bob'],
+          "import_percent": _result!['import_percent'],
+          "margin_percent": _result!['margin_percent'],
+          "total_final_bob": _result!['total_final_bob'],
+        }),
       );
-    } else {
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al agregar al carrito')),
+        SnackBar(
+          content: Text(
+            res.statusCode == 200
+                ? 'Agregado al carrito'
+                : 'Error al agregar al carrito',
+          ),
+        ),
       );
     }
-  }
+
+        void _showAuthRequiredDialog() {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("Acceso requerido"),
+          content: const Text(
+            "Lo sentimos esta función es solo permitido para usuarios registrados, por favor inicia una sesión o registrate. Gracias",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancelar"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/login');
+              },
+              child: const Text("Iniciar sesión"),
+            ),
+          ],
+        ),
+      );
+    }
 
   @override
   Widget build(BuildContext context) {

@@ -112,7 +112,7 @@ class _SellerOrdersScreenState
           context,
           MaterialPageRoute(
             builder: (_) => ChatScreen(
-              otherUserId: 1,
+              otherUserId: 1, // ACA DEBERIA SER IDE ADMIN SIEMPRE
               currentUserId: user.id,
             ),
           ),

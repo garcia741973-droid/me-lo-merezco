@@ -127,9 +127,10 @@ class _QrPaymentScreenState extends State<QrPaymentScreen> {
         title: const Text('Pago por QR'),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
           children: [
             const Text(
               'Escanea el QR para realizar el pago',
@@ -182,7 +183,7 @@ class _QrPaymentScreenState extends State<QrPaymentScreen> {
               style: const TextStyle(color: Colors.grey),
             ),
 
-            const Spacer(),
+            const SizedBox(height: 30),
 
             SizedBox(
               width: double.infinity,
@@ -227,12 +228,13 @@ class _QrPaymentScreenState extends State<QrPaymentScreen> {
                   );
                 }
               },
-                child: const Text('Subir comprobante / Ya pagué'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+              child: const Text('Subir comprobante / Ya pagué'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+              }

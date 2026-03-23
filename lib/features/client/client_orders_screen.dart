@@ -5,6 +5,8 @@ import '../../shared/models/order.dart';
 
 import 'client_order_detail_screen.dart';
 
+import '../../core/services/auth_service.dart';
+
 class ClientOrdersScreen extends StatefulWidget {
   const ClientOrdersScreen({super.key});
 
@@ -30,6 +32,12 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
   }
 
   void _loadOrders() {
+    // 🔒 SI NO ESTÁ LOGEADO → NO LLAMAR BACKEND
+    if (AuthService().currentUser == null) {
+      _ordersFuture = Future.value([]); // lista vacía
+      return;
+    }
+
     _ordersFuture = OrderService.fetchClientOrders();
   }
 
@@ -46,9 +54,13 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
 
   Future<void> _removeItem(int itemId) async {
     try {
-      await OrderService.deleteOrderItem(itemId);
-      _itemsCache.clear();
-      setState(_loadOrders);
+    await OrderService.deleteOrderItem(itemId);
+
+    _itemsCache.clear();
+
+    _loadOrders();
+
+    setState(() {});
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -234,7 +246,25 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
                     ..._groupOrdersByStatus(context, sentOrders),
                   ],
 
-                  if (cartOrders.isEmpty && sentOrders.isEmpty)
+                  if (AuthService().currentUser == null)
+                    Center(
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Inicia sesión para ver tu carrito y pedidos',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.pushNamed(context, '/login');
+                            },
+                            child: const Text('Iniciar sesión'),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (cartOrders.isEmpty && sentOrders.isEmpty)
                     const Center(
                       child: Text(
                         'No tienes pedidos todavía',
@@ -728,6 +758,66 @@ Widget _sentOrderCard(BuildContext context, Order order) {
               child: const Text('Ver detalle'),
             ),
           ),
+
+          if (order.status == OrderStatus.delivered ||
+              order.status == OrderStatus.rejected)
+            TextButton(
+              onPressed: () async {
+
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Eliminar pedido'),
+                    content: const Text(
+                      'Este pedido se eliminará de tu historial visible.'
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancelar'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Eliminar'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm != true) return;
+
+                try {
+
+                  await OrderService.archiveOrder(order.id);
+
+                  if (!mounted) return;
+
+                  setState(_loadOrders);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Pedido eliminado del historial'),
+                    ),
+                  );
+
+                } catch (e) {
+
+                  if (!mounted) return;
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error eliminando pedido: $e'),
+                    ),
+                  );
+                }
+
+              },
+              child: const Text(
+                'Eliminar de mi historial',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+
         ],
       ),
     ),

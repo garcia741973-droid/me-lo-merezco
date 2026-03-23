@@ -15,8 +15,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'core/services/auth_service.dart';
 
+import 'features/client/client_order_detail_screen.dart';
+
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
+
+    final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 // ✅ CONTADOR SEGURO PARA ANDROID (32-bit safe)
 int _notificationIdCounter = 0;
@@ -41,7 +45,31 @@ Future<void> _initLocalNotifications() async {
   await flutterLocalNotificationsPlugin.initialize(
     initializationSettings,
     onDidReceiveNotificationResponse: (NotificationResponse response) {
+
       debugPrint('Local notification tapped. Payload: ${response.payload}');
+
+      if (response.payload != null) {
+
+        final payload = response.payload!;
+
+        if (payload.contains("order_id")) {
+
+          final match = RegExp(r'order_id: (\d+)').firstMatch(payload);
+
+          if (match != null) {
+
+            final orderId = int.parse(match.group(1)!);
+
+            navigatorKey.currentState?.push(
+              MaterialPageRoute(
+                builder: (_) => ClientOrderDetailScreen(
+                  orderId: orderId,
+                ),
+              ),
+            );
+          }
+        }
+      }
     },
   );
 
@@ -62,7 +90,30 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
+      RemoteMessage? initialMessage =
+          await FirebaseMessaging.instance.getInitialMessage();
+
+      if (initialMessage != null) {
+
+        debugPrint("📬 App abierta desde notificación");
+
+        final orderId = initialMessage.data['order_id'];
+
+        if (orderId != null) {
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (_) => ClientOrderDetailScreen(
+                orderId: int.parse(orderId),
+              ),
+            ),
+          );
+        }
+
+      }
+
+
   await _initLocalNotifications();
+
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
@@ -144,10 +195,26 @@ debugPrint("🔥 PUSH RECIBIDO EN FOREGROUND");
     );
   });
 
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    debugPrint('Notification clicked: ${message.messageId}');
-    debugPrint('onMessageOpenedApp data: ${message.data}');
-  });
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+
+      debugPrint('Notification clicked: ${message.messageId}');
+      debugPrint('onMessageOpenedApp data: ${message.data}');
+
+      final orderId = message.data['order_id'];
+
+      if (orderId != null) {
+
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (_) => ClientOrderDetailScreen(
+              orderId: int.parse(orderId),
+            ),
+          ),
+        );
+
+      }
+
+    });
 
   runApp(const MyApp());
 }
@@ -157,9 +224,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: const SplashMiniCore(),
+      return MaterialApp(
+        navigatorKey: navigatorKey,
+        debugShowCheckedModeBanner: false,
+        home: const SplashMiniCore(),
       routes: {
         '/login': (_) => const LoginScreen(),
         '/register': (_) => const RegisterScreen(),

@@ -2,8 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/services/auth_service.dart';
@@ -116,14 +114,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       name.isEmpty ||
       email.isEmpty ||
       pass.isEmpty ||
-      pass2.isEmpty ||
-      documentId.isEmpty ||
-      phone.isEmpty ||
-      birthDate.isEmpty ||
-      country.isEmpty ||
-      city.isEmpty
+      pass2.isEmpty
     ) {
-      _showMessage('Completa todos los campos');
+      _showMessage('Completa los campos obligatorios');
       return;
     }
 
@@ -219,10 +212,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   _inputField(nameCtrl, "Nombre"),
                   const SizedBox(height: 14),
 
-                  _inputField(documentCtrl, "Documento de identidad"),
+                  _inputField(documentCtrl, "Documento de identidad (opcional)"),
                   const SizedBox(height: 14),
 
-                  _inputField(phoneCtrl, "Telefono"),
+                  _inputField(phoneCtrl, "Telefono (opcional)"),
                   const SizedBox(height: 14),
 
                   _inputField(
@@ -237,16 +230,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: AbsorbPointer(
                       child: _inputField(
                         birthDateCtrl,
-                        "Fecha de nacimiento",
+                        "Fecha de nacimiento (opcional)",
                       ),
                     ),
                   ),
                   const SizedBox(height: 14),
 
-                  _inputField(countryCtrl, "Pais"),
+                  _inputField(countryCtrl, "Pais (opcional)"),
                   const SizedBox(height: 14),
 
-                  _inputField(cityCtrl, "Ciudad"),
+                  _inputField(cityCtrl, "Ciudad (opcional)"),
                   const SizedBox(height: 14),
 
                   _inputField(addressCtrl, "Direccion (opcional)"),
@@ -267,20 +260,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         )
                       : 
                         DropdownButtonFormField<int?>(
+                          isExpanded: true,
                           value: selectedSellerId,
-                          decoration: _inputDecoration(
-                            "Vendedor",
-                          ),
+                          decoration: _inputDecoration("Vendedor"),
                           items: [
                             const DropdownMenuItem<int?>(
                               value: null,
-                              child: Text("No tengo vendedor opcional"),
+                              child: Text(
+                                "No tengo vendedor opcional",
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-
                             ...sellers.map((seller) {
                               return DropdownMenuItem<int?>(
                                 value: seller.id,
-                                child: Text(seller.name),
+                                child: Text(
+                                  seller.name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               );
                             }).toList(),
                           ],

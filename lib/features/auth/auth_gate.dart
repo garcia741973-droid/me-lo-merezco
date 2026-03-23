@@ -50,11 +50,16 @@ class _AuthGateState extends State<AuthGate> {
           context,
           MaterialPageRoute(builder: (_) => destination),
         );
-      } else {
-        setState(() {
-          _loading = false;
-        });
-      }
+        } else {
+          // 🔥 NUEVO: entrar como visitante (cliente)
+          AuthService().logout();
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const ClientMainMenuScreen(),
+            ),
+          );
+        }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -178,6 +183,31 @@ class _AuthGateState extends State<AuthGate> {
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 16),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ClientMainMenuScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "Continuar como invitado",
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+
                 ],
               ),
             ),

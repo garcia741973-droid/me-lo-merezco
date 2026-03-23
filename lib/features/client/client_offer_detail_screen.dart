@@ -14,12 +14,17 @@ class ClientOfferDetailScreen extends StatelessWidget {
 
   Future<void> _addToCart(
       BuildContext context, int offerId) async {
+
+    // 🔒 BLOQUEO VISITANTE
+    if (AuthService().currentUser == null) {
+      _showAuthRequiredDialog(context);
+      return;
+    }
+
     final token = await AuthService().getToken();
 
     if (token == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario no autenticado')),
-      );
+      _showAuthRequiredDialog(context);
       return;
     }
 
@@ -36,15 +41,42 @@ class ClientOfferDetailScreen extends StatelessWidget {
       }),
     );
 
-    if (res.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Agregado al carrito')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al agregar al carrito')),
-      );
-    }
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          res.statusCode == 200
+              ? 'Agregado al carrito'
+              : 'Error al agregar al carrito',
+        ),
+      ),
+    );
+  }
+
+    void _showAuthRequiredDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Acceso requerido"),
+        content: const Text(
+          "Lo sentimos esta función es solo permitido para usuarios registrados, por favor inicia sesión o registrate. Gracias",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancelar"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/login');
+            },
+            child: const Text("Iniciar sesión"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

@@ -227,6 +227,7 @@ class _ChatScreenState extends State<ChatScreen>
   Widget build(BuildContext context) {
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
 
       appBar: AppBar(
         title: const Text("Chat"),
@@ -271,8 +272,11 @@ class _ChatScreenState extends State<ChatScreen>
 
                       if (!isMe) const SizedBox(width: 6),
 
-                      Flexible(
-                        child: Container(
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.7,
+                          ),
+                          child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
@@ -295,6 +299,8 @@ class _ChatScreenState extends State<ChatScreen>
 
                               Text(
                                 msg.message,
+                                softWrap: true,
+                                overflow: TextOverflow.visible,
                                 style: TextStyle(
                                   color:
                                       isMe ? Colors.white : Colors.black,
@@ -327,32 +333,28 @@ class _ChatScreenState extends State<ChatScreen>
           ),
 
           Padding(
-
             padding: const EdgeInsets.all(8),
-
-            child: Row(
-
-              children: [
-
-                Expanded(
-
-                  child: TextField(
-
-                    controller: controller,
-
-                    decoration:
-                        const InputDecoration(
-                      hintText:
-                          "Escribe un mensaje...",
+            child: SafeArea(
+              top: false,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => send(),
+                      decoration: const InputDecoration(
+                        hintText: "Escribe un mensaje...",
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                   ),
-                ),
-
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: send,
-                ),
-              ],
+                  IconButton(
+                    icon: const Icon(Icons.send),
+                    onPressed: send,
+                  ),
+                ],
+              ),
             ),
           ),
         ],

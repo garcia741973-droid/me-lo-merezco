@@ -87,8 +87,11 @@ class _AdminQrManagementScreenState
         builder: (context, setModalState) {
           return AlertDialog(
             title: const Text('Crear nuevo QR'),
-            content: SingleChildScrollView(
-              child: Column(
+            content: SizedBox(
+              width: double.maxFinite,
+              height: MediaQuery.of(context).size.height * 0.6,
+              child: SingleChildScrollView(
+                child: Column(
                 children: [
 
                   ElevatedButton.icon(
@@ -171,6 +174,7 @@ class _AdminQrManagementScreenState
                   ),
                 ],
               ),
+            ),
             ),
             actions: [
               TextButton(
@@ -403,8 +407,11 @@ class _AdminQrManagementScreenState
 
                           if (qr['is_active'] == false)
                             ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                              ),
                               onPressed: () => _activate(qr['id']),
-                              child: const Text('Activar'),
+                              child: const Text('Reemplazar QR activo'),
                             ),
 
                             const SizedBox(height: 8),

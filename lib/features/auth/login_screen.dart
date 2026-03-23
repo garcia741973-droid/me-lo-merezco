@@ -245,8 +245,24 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
 
-                  const SizedBox(height: 60),
+                  const SizedBox(height: 20),
 
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pushNamed(context, '/register');
+                    },
+                    child: const Text(
+                      "¿No tienes cuenta? Crear cuenta",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 60),
                   // 🔱 Logo minimalista abajo
                   Image.asset(
                     "assets/logos/logo_minimalista.png",
