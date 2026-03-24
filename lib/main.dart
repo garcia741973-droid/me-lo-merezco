@@ -17,6 +17,8 @@ import 'core/services/auth_service.dart';
 
 import 'features/client/client_order_detail_screen.dart';
 
+import 'core/ui/connectivity_wrapper.dart';
+
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
@@ -224,10 +226,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-      return MaterialApp(
-        navigatorKey: navigatorKey,
-        debugShowCheckedModeBanner: false,
-        home: const SplashMiniCore(),
+    return MaterialApp(
+      navigatorKey: navigatorKey,
+      debugShowCheckedModeBanner: false,
+
+      builder: (context, child) {
+        return ConnectivityWrapper(
+          child: child ?? const SizedBox(),
+       );
+      },
+      home: const SplashMiniCore(),
       routes: {
         '/login': (_) => const LoginScreen(),
         '/register': (_) => const RegisterScreen(),

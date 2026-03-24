@@ -13,6 +13,8 @@ import '../communications/screens/chat_screen.dart';
 import 'client_help_screen.dart';
 import 'package:http/http.dart' as http;
 
+import 'client_settings_screen.dart';
+
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
 
@@ -21,7 +23,7 @@ class ClientHomeScreen extends StatefulWidget {
 }
 
 class _ClientHomeScreenState extends State<ClientHomeScreen> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  // menú inferior modal, sin ScaffoldKey
 
   int _bottomIndex = 0;
 
@@ -133,118 +135,12 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   }
 
   void _closeDrawer(BuildContext drawerContext) {
-    Navigator.pop(drawerContext);
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: _scaffoldKey,
-// SOLO TE PONGO LA PARTE DEL DRAWER CORREGIDA
-
-        endDrawer: Drawer(
-          child: Builder(
-            builder: (drawerContext) {
-              return SafeArea(
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    const DrawerHeader(
-                      child: Text(
-                        'Menú',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-
-                    ListTile(
-                      title: const Text('Menú General'),
-                      onTap: () {
-                        Navigator.pop(drawerContext);
-                        setState(() => _bottomIndex = 0);
-                      },
-                    ),
-
-                    ListTile(
-                      title: const Text('Ofertas'),
-                      onTap: () {
-                        Navigator.pop(drawerContext);
-                        setState(() => _bottomIndex = 2);
-                      },
-                    ),
-
-                    ListTile(
-                      title: const Text('Carrito / Pedidos'),
-                      onTap: () {
-                        Navigator.pop(drawerContext);
-                        setState(() => _bottomIndex = 1);
-                      },
-                    ),
-
-                    ListTile(
-                      title: const Text('Ayuda'),
-                      onTap: () {
-                        Navigator.pop(drawerContext);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ClientHelpScreen(),
-                          ),
-                        );
-                      },
-                    ),
-
-                    const Divider(),
-
-                    ListTile(
-                      title: const Text('Política de privacidad'),
-                      onTap: () {
-                        Navigator.pop(drawerContext);
-                        _openUrl("https://minicore.estuvia.org/melomerezco/privacy.html");
-                      },
-                    ),
-
-                    ListTile(
-                      title: const Text('Términos de uso'),
-                      onTap: () {
-                        Navigator.pop(drawerContext);
-                        _openUrl("https://minicore.estuvia.org/melomerezco/terms.html");
-                      },
-                    ),
-
-                    ListTile(
-                      title: const Text('Soporte'),
-                      onTap: () {
-                        Navigator.pop(drawerContext);
-                        _openUrl("https://minicore.estuvia.org/melomerezco/support.html");
-                      },
-                    ),
-
-                    const Divider(),
-
-                    ListTile(
-                      title: const Text('Eliminar cuenta'),
-                      onTap: () {
-                        Navigator.pop(drawerContext);
-                        _confirmDeleteAccount();
-                      },
-                    ),
-
-                    ListTile(
-                      title: const Text('Salir'),
-                      onTap: () {
-                        Navigator.pop(drawerContext);
-                        _logout();
-                      },
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
       appBar: AppBar(
         title: const Text('Me lo merezco'),
         actions: [
@@ -278,26 +174,76 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             },
           ),
 
-          Builder(
-            builder: (context) {
-              return IconButton(
-                icon: const Icon(Icons.more_vert),
-                onPressed: () {
-                  Scaffold.of(context).openEndDrawer();
-                },
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () async {
+              final selected = await Navigator.push<String>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ClientSettingsScreen(),
+                ),
               );
+
+              if (!mounted || selected == null) return;
+
+              switch (selected) {
+                case 'menu':
+                  setState(() => _bottomIndex = 0);
+                  break;
+
+                case 'offers':
+                  setState(() => _bottomIndex = 2);
+                  break;
+
+                case 'orders':
+                  setState(() => _bottomIndex = 1);
+                  break;
+
+                case 'help':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ClientHelpScreen(),
+                    ),
+                  );
+                  break;
+
+                case 'privacy':
+                  _openUrl("https://minicore.estuvia.org/melomerezco/privacy.html");
+                  break;
+
+                case 'terms':
+                  _openUrl("https://minicore.estuvia.org/melomerezco/terms.html");
+                  break;
+
+                case 'support':
+                  _openUrl("https://minicore.estuvia.org/melomerezco/support.html");
+                  break;
+
+                case 'delete':
+                  _confirmDeleteAccount();
+                  break;
+
+                case 'logout':
+                  _logout();
+                  break;
+              }
             },
           ),
         ],
       ),
 
       // ✅ SOLO CAMBIO REAL
-      body: SafeArea(
-        child: IndexedStack(
-          index: _bottomIndex,
-          children: _pages,
+        body: SafeArea(
+          child: Builder(
+            builder: (context) {
+              return IndexedStack(
+                index: _bottomIndex,
+                children: _pages,
+              );
+            },
+          ),
         ),
-      ),
 
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _bottomIndex,
