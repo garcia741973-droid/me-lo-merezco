@@ -25,21 +25,29 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
   DateTime? _toDate;
   OrderStatus? _statusFilter;
 
+//  @override
+//  void didChangeDependencies() {
+//    super.didChangeDependencies();
+//    _loadOrders();
+//  }
+
   @override
   void initState() {
     super.initState();
     _loadOrders();
   }
 
-  void _loadOrders() {
-    // 🔒 SI NO ESTÁ LOGEADO → NO LLAMAR BACKEND
-    if (AuthService().currentUser == null) {
-      _ordersFuture = Future.value([]); // lista vacía
-      return;
-    }
+    void _loadOrders() {
+      if (AuthService().currentUser == null) {
+        _ordersFuture = Future.value([]);
+      } else {
+        _ordersFuture = OrderService.fetchClientOrders();
+      }
 
-    _ordersFuture = OrderService.fetchClientOrders();
-  }
+      if (mounted) {
+        setState(() {});
+      }
+    }
 
   Future<void> _preloadCartItems(List<Order> cartOrders) async {
     for (final order in cartOrders) {
@@ -60,7 +68,7 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
 
     _loadOrders();
 
-    setState(() {});
+//    setState(() {});
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -151,7 +159,7 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
             return RefreshIndicator(
               onRefresh: () async {
                 _itemsCache.clear();
-                setState(_loadOrders);
+                _loadOrders();
               },
               child: ListView(
                 padding: const EdgeInsets.all(16),
@@ -543,7 +551,7 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
                                                           .requestItemValidation(itemId);
 
                                                       _itemsCache.clear();
-                                                      setState(_loadOrders);
+                                                      _loadOrders();
 
                                                       if (!mounted) return;
 
@@ -746,14 +754,15 @@ Widget _sentOrderCard(BuildContext context, Order order) {
             width: double.infinity,
             child: OutlinedButton(
               onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        ClientOrderDetailScreen(orderId: order.id),
-                  ),
-                );
-                setState(_loadOrders);
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ClientOrderDetailScreen(orderId: order.id),
+                ),
+              );
+
+              _loadOrders(); // 🔥 CLAVE
               },
               child: const Text('Ver detalle'),
             ),
@@ -792,7 +801,7 @@ Widget _sentOrderCard(BuildContext context, Order order) {
 
                   if (!mounted) return;
 
-                  setState(_loadOrders);
+                  _loadOrders();
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(

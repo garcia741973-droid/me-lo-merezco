@@ -97,15 +97,37 @@ Future<void> _addToCart(int offerId) async {
     print("ADD QUOTE STATUS: ${res.statusCode}");
     print("ADD QUOTE BODY: ${res.body}");
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          res.statusCode == 200
-              ? 'Agregado al carrito'
-              : 'Error: ${res.body}',
+    if (!mounted) return;
+
+    if (res.statusCode == 200) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("Carrito"),
+          content: const Text("Producto agregado correctamente"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
+            ),
+          ],
         ),
-      ),
-    );
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("Error"),
+          content: Text(res.body),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cerrar"),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
     void _showAuthRequiredDialog() {

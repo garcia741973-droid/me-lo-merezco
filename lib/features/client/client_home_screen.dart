@@ -247,7 +247,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _bottomIndex,
-        onTap: (i) => setState(() => _bottomIndex = i),
+                    onTap: (i) {
+                      setState(() {
+                        _bottomIndex = i;
+                      });
+
+                      // 🔥 CLAVE: forzar rebuild cuando vas a carrito
+                      if (i == 1) {
+                        Future.delayed(const Duration(milliseconds: 100), () {
+                          setState(() {});
+                        });
+                      }
+                    },
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
