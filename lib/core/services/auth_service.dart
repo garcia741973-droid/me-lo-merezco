@@ -5,6 +5,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../../shared/models/user.dart';
 
+import 'dart:io';
+
 class AuthService {
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
@@ -281,7 +283,7 @@ Future<bool> fetchCurrentUserFromToken() async {
         },
         body: jsonEncode({
           'fcm_token': fcmToken,
-          'platform': 'ios',
+          'platform': Platform.isAndroid ? 'android' : 'ios',
         }),
       );
     } catch (e) {

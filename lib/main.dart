@@ -22,9 +22,8 @@ import 'core/ui/connectivity_wrapper.dart';
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-    final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-// ✅ CONTADOR SEGURO PARA ANDROID (32-bit safe)
 int _notificationIdCounter = 0;
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -47,19 +46,15 @@ Future<void> _initLocalNotifications() async {
   await flutterLocalNotificationsPlugin.initialize(
     initializationSettings,
     onDidReceiveNotificationResponse: (NotificationResponse response) {
-
       debugPrint('Local notification tapped. Payload: ${response.payload}');
 
       if (response.payload != null) {
-
         final payload = response.payload!;
 
         if (payload.contains("order_id")) {
-
           final match = RegExp(r'order_id: (\d+)').firstMatch(payload);
 
           if (match != null) {
-
             final orderId = int.parse(match.group(1)!);
 
             navigatorKey.currentState?.push(
@@ -92,30 +87,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-      RemoteMessage? initialMessage =
-          await FirebaseMessaging.instance.getInitialMessage();
-
-      if (initialMessage != null) {
-
-        debugPrint("📬 App abierta desde notificación");
-
-        final orderId = initialMessage.data['order_id'];
-
-        if (orderId != null) {
-          navigatorKey.currentState?.push(
-            MaterialPageRoute(
-              builder: (_) => ClientOrderDetailScreen(
-                orderId: int.parse(orderId),
-              ),
-            ),
-          );
-        }
-
-      }
-
+  // 🔥 GUARDAMOS EL MENSAJE (SIN NAVEGAR AÚN)
+  final RemoteMessage? initialMessage =
+      await FirebaseMessaging.instance.getInitialMessage();
 
   await _initLocalNotifications();
-
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
@@ -159,33 +135,20 @@ Future<void> main() async {
     }
   });
 
-  // ✅ FOREGROUND HANDLER CORREGIDO
   FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-
-debugPrint("🔥 PUSH RECIBIDO EN FOREGROUND");
-
-    debugPrint('onMessage received: ${message.messageId}');
-    debugPrint('Message data: ${message.data}');
-    debugPrint('Notification: ${message.notification}');
+    debugPrint("🔥 PUSH RECIBIDO EN FOREGROUND");
 
     const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       'high_importance_channel',
       'High Importance Notifications',
-      channelDescription: 'This channel is used for important notifications.',
       importance: Importance.max,
       priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-      category: AndroidNotificationCategory.message,
-      fullScreenIntent: false,
-      ticker: 'ticker',
     );
 
     const NotificationDetails notificationDetails =
         NotificationDetails(android: androidDetails);
 
-    // ✅ ID SEGURO
     _notificationIdCounter++;
 
     await flutterLocalNotificationsPlugin.show(
@@ -197,43 +160,55 @@ debugPrint("🔥 PUSH RECIBIDO EN FOREGROUND");
     );
   });
 
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    final orderId = message.data['order_id'];
 
-      debugPrint('Notification clicked: ${message.messageId}');
-      debugPrint('onMessageOpenedApp data: ${message.data}');
-
-      final orderId = message.data['order_id'];
-
-      if (orderId != null) {
-
-        navigatorKey.currentState?.push(
-          MaterialPageRoute(
-            builder: (_) => ClientOrderDetailScreen(
-              orderId: int.parse(orderId),
-            ),
+    if (orderId != null) {
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) => ClientOrderDetailScreen(
+            orderId: int.parse(orderId),
           ),
-        );
+        ),
+      );
+    }
+  });
 
-      }
-
-    });
-
-  runApp(const MyApp());
+  runApp(MyApp(initialMessage: initialMessage));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final RemoteMessage? initialMessage;
+
+  const MyApp({super.key, this.initialMessage});
 
   @override
   Widget build(BuildContext context) {
+
+    // 🔥 EJECUTA NAVEGACIÓN SOLO CUANDO LA APP YA ESTÁ LISTA
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (initialMessage != null) {
+        final orderId = initialMessage!.data['order_id'];
+
+        if (orderId != null) {
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (_) => ClientOrderDetailScreen(
+                orderId: int.parse(orderId),
+              ),
+            ),
+          );
+        }
+      }
+    });
+
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-
       builder: (context, child) {
         return ConnectivityWrapper(
           child: child ?? const SizedBox(),
-       );
+        );
       },
       home: const SplashMiniCore(),
       routes: {
