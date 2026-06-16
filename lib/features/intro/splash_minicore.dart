@@ -381,39 +381,6 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
     );
   }
 
-  Widget _buildStoreLogos() {
-    return AnimatedBuilder(
-      animation: _buttonsFade,
-      builder: (context, child) {
-        return Opacity(
-          opacity: _buttonsFade.value * 0.85,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 26),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-
-                Image.asset(
-                  "assets/logos/apple_mini_white.png",
-                  height: 18,
-                  color: Colors.white.withOpacity(0.85),
-                ),
-
-                const SizedBox(width: 22),
-
-                Image.asset(
-                  "assets/logos/google_play_mini_white.png",
-                  height: 18,
-                  color: Colors.white.withOpacity(0.85),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -441,8 +408,6 @@ class _SplashMiniCoreState extends State<SplashMiniCore>
                 _buildTagline(),
 
                 _buildAuthButtons(),
-
-                _buildStoreLogos(),
 
               ],
             ),

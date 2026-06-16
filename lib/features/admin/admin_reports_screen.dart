@@ -8,7 +8,7 @@ import '../../core/services/auth_service.dart';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:open_filex/open_filex.dart';
+//import 'package:open_filex/open_filex.dart';
 
 class AdminReportsScreen extends StatefulWidget {
   const AdminReportsScreen({super.key});
@@ -212,14 +212,24 @@ Future<void> download(String type) async {
       );
 
       // Abrir el archivo con la app correspondiente (Excel/Files/Acrobat/etc.)
-      final result = await OpenFilex.open(filePath);
+//      final result = await OpenFilex.open(filePath);
+//
+//      if (result.type != ResultType.done) {
+//        // Si no pudo abrir, al menos mostramos la ruta (para buscarlo en Files)
+//        ScaffoldMessenger.of(context).showSnackBar(
+//          SnackBar(content: Text("Descargado en: $filePath")),
+//        );
+//      }
+//REMPLAZADO POR PERMISOS DE ANDROID POR LO QUE SIGUE
 
-      if (result.type != ResultType.done) {
-        // Si no pudo abrir, al menos mostramos la ruta (para buscarlo en Files)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Descargado en: $filePath")),
-        );
-      }
+ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+    content: Text("Reporte descargado correctamente"),
+  ),
+);
+
+// ACA EL REMPLAZO POR OBSERVACION DE ANDROID
+
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error descargando: $e")),

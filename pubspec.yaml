@@ -2,7 +2,7 @@ name: me_lo_merezco
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.0+3
+version: 1.0.0+7
 
 environment:
   sdk: ^3.10.7
@@ -27,7 +27,7 @@ dependencies:
   flutter_local_notifications: ^17.2.1
   path_provider: ^2.1.2
   dio: ^5.4.0
-  open_filex: ^4.3.2
+#  open_filex: ^4.3.2 POR PROBLEMAS CON ANDROID
   connectivity_plus: ^6.0.3
 
 
