@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 //import 'package:permission_handler/permission_handler.dart';
 
-import 'package:image_picker/image_picker.dart'; PROBLEMAS CON ANDROID
+import 'package:image_picker/image_picker.dart';
 import '../../core/services/cloudinary_service.dart';
 
 class QrPaymentScreen extends StatefulWidget {
