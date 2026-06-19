@@ -22,45 +22,76 @@ import 'core/ui/connectivity_wrapper.dart';
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> navigatorKey =
+    GlobalKey<NavigatorState>();
 
 int _notificationIdCounter = 0;
 
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+Future<void> _firebaseMessagingBackgroundHandler(
+  RemoteMessage message,
+) async {
   await Firebase.initializeApp();
-  debugPrint('Background message: ${message.messageId}');
+
+  debugPrint(
+    'Background message: ${message.messageId}',
+  );
 }
 
 Future<void> _initLocalNotifications() async {
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
+  const AndroidInitializationSettings
+      initializationSettingsAndroid =
+      AndroidInitializationSettings(
+    '@mipmap/ic_launcher',
+  );
 
-  const DarwinInitializationSettings initializationSettingsIOS =
+  const DarwinInitializationSettings
+      initializationSettingsIOS =
       DarwinInitializationSettings();
 
-  const InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
+  const InitializationSettings
+      initializationSettings =
+      InitializationSettings(
+    android:
+        initializationSettingsAndroid,
     iOS: initializationSettingsIOS,
   );
 
-  await flutterLocalNotificationsPlugin.initialize(
+  await flutterLocalNotificationsPlugin
+      .initialize(
     initializationSettings,
-    onDidReceiveNotificationResponse: (NotificationResponse response) {
-      debugPrint('Local notification tapped. Payload: ${response.payload}');
+    onDidReceiveNotificationResponse:
+        (
+      NotificationResponse response,
+    ) {
+      debugPrint(
+        'Local notification tapped. Payload: ${response.payload}',
+      );
 
-      if (response.payload != null) {
-        final payload = response.payload!;
+      if (
+          response.payload != null) {
+        final payload =
+            response.payload!;
 
-        if (payload.contains("order_id")) {
-          final match = RegExp(r'order_id: (\d+)').firstMatch(payload);
+        if (payload.contains(
+          "order_id",
+        )) {
+          final match = RegExp(
+            r'order_id: (\d+)',
+          ).firstMatch(payload);
 
           if (match != null) {
-            final orderId = int.parse(match.group(1)!);
+            final orderId =
+                int.parse(
+              match.group(1)!,
+            );
 
-            navigatorKey.currentState?.push(
+            navigatorKey.currentState
+                ?.push(
               MaterialPageRoute(
-                builder: (_) => ClientOrderDetailScreen(
-                  orderId: orderId,
+                builder: (_) =>
+                    ClientOrderDetailScreen(
+                  orderId:
+                      orderId,
                 ),
               ),
             );
@@ -70,150 +101,269 @@ Future<void> _initLocalNotifications() async {
     },
   );
 
-  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+  const AndroidNotificationChannel
+      channel =
+      AndroidNotificationChannel(
     'high_importance_channel',
     'High Importance Notifications',
-    description: 'This channel is used for important notifications.',
-    importance: Importance.max,
+    description:
+        'This channel is used for important notifications.',
+    importance:
+        Importance.max,
   );
 
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(channel);
+      ?.createNotificationChannel(
+    channel,
+  );
 }
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding
+      .ensureInitialized();
+
   await Firebase.initializeApp();
 
-  // 🔥 GUARDAMOS EL MENSAJE (SIN NAVEGAR AÚN)
-  final RemoteMessage? initialMessage =
-      await FirebaseMessaging.instance.getInitialMessage();
+  final RemoteMessage?
+      initialMessage =
+      await FirebaseMessaging
+          .instance
+          .getInitialMessage();
 
   await _initLocalNotifications();
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  NotificationSettings settings =
-      await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
+  FirebaseMessaging
+      .onBackgroundMessage(
+    _firebaseMessagingBackgroundHandler,
   );
 
-  debugPrint('User granted permission: ${settings.authorizationStatus}');
-
-  await FirebaseMessaging.instance
-      .setForegroundNotificationPresentationOptions(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-
-  final fcmToken = await FirebaseMessaging.instance.getToken();
-  debugPrint('FCM TOKEN: $fcmToken');
-
-  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
-    debugPrint('🔥 TOKEN REFRESHED: $newToken');
-
-    final auth = AuthService();
-    final token = await auth.getToken();
-
-    if (token != null) {
-      await http.post(
-        Uri.parse('https://me-lo-merezco-backend.onrender.com/devices'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'fcm_token': newToken,
-          'platform': 'ios',
-        }),
+  FirebaseMessaging.instance
+      .onTokenRefresh
+      .listen(
+    (newToken) async {
+      debugPrint(
+        '🔥 TOKEN REFRESHED: $newToken',
       );
-    }
-  });
 
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-    debugPrint("🔥 PUSH RECIBIDO EN FOREGROUND");
+      final auth =
+          AuthService();
 
-    const AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-      'high_importance_channel',
-      'High Importance Notifications',
-      importance: Importance.max,
-      priority: Priority.high,
-    );
+      final token =
+          await auth.getToken();
 
-    const NotificationDetails notificationDetails =
-        NotificationDetails(android: androidDetails);
-
-    _notificationIdCounter++;
-
-    await flutterLocalNotificationsPlugin.show(
-      _notificationIdCounter,
-      message.notification?.title ?? message.data['title'] ?? 'Notificación',
-      message.notification?.body ?? message.data['body'] ?? '',
-      notificationDetails,
-      payload: message.data.isNotEmpty ? message.data.toString() : null,
-    );
-  });
-
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    final orderId = message.data['order_id'];
-
-    if (orderId != null) {
-      navigatorKey.currentState?.push(
-        MaterialPageRoute(
-          builder: (_) => ClientOrderDetailScreen(
-            orderId: int.parse(orderId),
+      if (token != null) {
+        await http.post(
+          Uri.parse(
+            'https://me-lo-merezco-backend.onrender.com/devices',
           ),
-        ),
-      );
-    }
-  });
+          headers: {
+            'Content-Type':
+                'application/json',
+            'Authorization':
+                'Bearer $token',
+          },
+          body: jsonEncode({
+            'fcm_token':
+                newToken,
+            'platform': 'ios',
+          }),
+        );
+      }
+    },
+  );
 
-  runApp(MyApp(initialMessage: initialMessage));
+  FirebaseMessaging.onMessage
+      .listen(
+    (
+      RemoteMessage message,
+    ) async {
+      debugPrint(
+        "🔥 PUSH RECIBIDO EN FOREGROUND",
+      );
+
+      const AndroidNotificationDetails
+          androidDetails =
+          AndroidNotificationDetails(
+        'high_importance_channel',
+        'High Importance Notifications',
+        importance:
+            Importance.max,
+        priority:
+            Priority.high,
+      );
+
+      const NotificationDetails
+          notificationDetails =
+          NotificationDetails(
+        android:
+            androidDetails,
+      );
+
+      _notificationIdCounter++;
+
+      await flutterLocalNotificationsPlugin
+          .show(
+        _notificationIdCounter,
+        message.notification
+                ?.title ??
+            message.data[
+                'title'] ??
+            'Notificación',
+        message.notification
+                ?.body ??
+            message.data[
+                'body'] ??
+            '',
+        notificationDetails,
+        payload: message
+                .data
+                .isNotEmpty
+            ? message.data
+                .toString()
+            : null,
+      );
+    },
+  );
+
+  FirebaseMessaging
+      .onMessageOpenedApp
+      .listen(
+    (
+      RemoteMessage message,
+    ) {
+      final orderId =
+          message.data[
+              'order_id'];
+
+      if (orderId != null) {
+        navigatorKey.currentState
+            ?.push(
+          MaterialPageRoute(
+            builder: (_) =>
+                ClientOrderDetailScreen(
+              orderId:
+                  int.parse(
+                orderId,
+              ),
+            ),
+          ),
+        );
+      }
+    },
+  );
+
+  runApp(
+    MyApp(
+      initialMessage:
+          initialMessage,
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  final RemoteMessage? initialMessage;
+  final RemoteMessage?
+      initialMessage;
 
-  const MyApp({super.key, this.initialMessage});
+  const MyApp({
+    super.key,
+    this.initialMessage,
+  });
+
+  Future<void>
+      _initPushNotifications() async {
+    try {
+      NotificationSettings
+          settings =
+          await FirebaseMessaging
+              .instance
+              .requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      debugPrint(
+        'User granted permission: ${settings.authorizationStatus}',
+      );
+
+      await FirebaseMessaging
+          .instance
+          .setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      final fcmToken =
+          await FirebaseMessaging
+              .instance
+              .getToken();
+
+      debugPrint(
+        'FCM TOKEN: $fcmToken',
+      );
+    } catch (e) {
+      debugPrint(
+        'FCM INIT ERROR: $e',
+      );
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
+    WidgetsBinding.instance
+        .addPostFrameCallback(
+      (_) {
+        _initPushNotifications();
 
-    // 🔥 EJECUTA NAVEGACIÓN SOLO CUANDO LA APP YA ESTÁ LISTA
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (initialMessage != null) {
-        final orderId = initialMessage!.data['order_id'];
+        if (initialMessage != null) {
+          final orderId =
+              initialMessage!
+                  .data[
+              'order_id'];
 
-        if (orderId != null) {
-          navigatorKey.currentState?.push(
-            MaterialPageRoute(
-              builder: (_) => ClientOrderDetailScreen(
-                orderId: int.parse(orderId),
+          if (orderId != null) {
+            navigatorKey
+                .currentState
+                ?.push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    ClientOrderDetailScreen(
+                  orderId:
+                      int.parse(
+                    orderId,
+                  ),
+                ),
               ),
-            ),
-          );
+            );
+          }
         }
-      }
-    });
+      },
+    );
 
     return MaterialApp(
-      navigatorKey: navigatorKey,
-      debugShowCheckedModeBanner: false,
-      builder: (context, child) {
+      navigatorKey:
+          navigatorKey,
+      debugShowCheckedModeBanner:
+          false,
+      builder:
+          (context, child) {
         return ConnectivityWrapper(
-          child: child ?? const SizedBox(),
+          child: child ??
+              const SizedBox(),
         );
       },
-      home: const SplashMiniCore(),
+      home:
+          const SplashMiniCore(),
       routes: {
-        '/login': (_) => const LoginScreen(),
-        '/register': (_) => const RegisterScreen(),
+        '/login': (_) =>
+            const LoginScreen(),
+        '/register': (_) =>
+            const RegisterScreen(),
       },
     );
   }
